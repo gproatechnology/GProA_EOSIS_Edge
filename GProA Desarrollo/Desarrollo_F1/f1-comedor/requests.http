@@ -1,0 +1,230 @@
+# F1 Comedor API - Request Examples
+# Copy these to your HTTP client (VS Code REST Client, Postman, etc.)
+
+# ============================================
+# AUTH
+# ============================================
+
+# Login - Returns JWT token
+# @name login
+POST http://localhost:8000/api/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=admin123
+
+###
+
+# Refresh Token
+POST http://localhost:8000/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "YOUR_REFRESH_TOKEN_HERE"
+}
+
+# ============================================
+# COMPANIES
+# ============================================
+
+# Get Companies (requires auth - copy token from login response)
+GET http://localhost:8000/api/companies
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Create Company
+POST http://localhost:8000/api/companies
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "name": "Nueva Empresa",
+  "code": "NUEVA"
+}
+
+###
+
+# Get Company by ID
+GET http://localhost:8000/api/companies/1
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Update Company
+PUT http://localhost:8000/api/companies/1
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "name": "Empresa Actualizada"
+}
+
+###
+
+# Delete Company
+DELETE http://localhost:8000/api/companies/1
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+# ============================================
+# CATEGORIES
+# ============================================
+
+# Get Categories
+GET http://localhost:8000/api/categories
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Create Category
+POST http://localhost:8000/api/categories
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "name": "Gerente",
+  "daily_limit": 5,
+  "credit_limit": 1000
+}
+
+# ============================================
+# EMPLOYEES
+# ============================================
+
+# Get Employees (with filters)
+GET http://localhost:8000/api/employees?company_id=1&category_id=1&search=Juan
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Create Employee (QR is auto-generated)
+POST http://localhost:8000/api/employees
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "employee_number": "EMP1001",
+  "first_name": "Juan",
+  "last_name": "Pérez",
+  "company_id": 1,
+  "category_id": 1,
+  "email": "juan.perez@empresa.com",
+  "phone": "+52 55 1234 5678"
+}
+
+###
+
+# Get Employee QR Image
+GET http://localhost:8000/api/employees/1/qr
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Scan Employee QR Code
+POST http://localhost:8000/api/employees/scan
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "qr_code": "EMP-100000"
+}
+
+# ============================================
+# MENU ITEMS
+# ============================================
+
+# Get Menu Items
+GET http://localhost:8000/api/menu-items?meal_type=LUNCH
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Create Menu Item
+POST http://localhost:8000/api/menu-items
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "name": "Tacos de Asada",
+  "description": "6 tacos de carne asada con cebolla y cilantro",
+  "price": 65.00,
+  "meal_type": "LUNCH"
+}
+
+# ============================================
+# CONSUMPTIONS
+# ============================================
+
+# Get Consumptions
+GET http://localhost:8000/api/consumptions?date_from=2024-01-01&date_to=2024-01-31
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Register Consumption (after scanning QR)
+POST http://localhost:8000/api/consumptions
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "employee_id": 1,
+  "meal_type": "LUNCH",
+  "items": [
+    {
+      "menu_item_id": 1,
+      "name": "Combo Ejecutivo",
+      "price": 85.00,
+      "quantity": 1
+    }
+  ],
+  "notes": "Sin cebolla"
+}
+
+# ============================================
+# REPORTS
+# ============================================
+
+# Report by Company
+GET http://localhost:8000/api/reports/by-company?date_from=2024-01-01&date_to=2024-01-31
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Report by Category
+GET http://localhost:8000/api/reports/by-category?date_from=2024-01-01&date_to=2024-01-31
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Report by Employee
+GET http://localhost:8000/api/reports/by-employee?employee_id=1&date_from=2024-01-01&date_to=2024-01-31
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Daily Summary
+GET http://localhost:8000/api/reports/daily-summary?date=2024-01-15
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Dashboard Stats
+GET http://localhost:8000/api/reports/dashboard/stats
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+# Export to Excel
+GET http://localhost:8000/api/reports/export/excel?date_from=2024-01-01&date_to=2024-01-31
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+# ============================================
+# HEALTH CHECK
+# ============================================
+
+# Root endpoint
+GET http://localhost:8000/
+
+###
+
+# Health check
+GET http://localhost:8000/health

@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: f1comedor
+      POSTGRES_PASSWORD: f1comedor123
+      POSTGRES_DB: f1comedor
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - f1-comedor-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U f1comedor -d f1comedor"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://f1comedor:f1comedor123@db:5432/f1comedor
+      SECRET_KEY: your-secret-key-change-in-production
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - f1-comedor-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - ./frontend:/app
+    networks:
+      - f1-comedor-network
+    environment:
+      - VITE_API_URL=http://app:8000
+
+networks:
+  f1-comedor-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
