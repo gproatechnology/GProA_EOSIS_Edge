@@ -281,7 +281,7 @@ export default function Dashboard() {
           <Button
             icon={Icons.Scanner}
             onClick={() => navigate('/scanner')}
-            variant="success"
+            variant="primary"
             className="flex-1 flex items-center justify-center px-6 py-4 text-lg font-bold transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
           >
             Scanner QR
@@ -297,7 +297,7 @@ export default function Dashboard() {
           <Button
             icon={Icons.Admin}
             onClick={() => navigate('/admin')}
-            variant="danger"
+            variant="primary"
             className="flex-1 flex items-center justify-center px-6 py-4 text-lg font-bold transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
           >
             Administración
