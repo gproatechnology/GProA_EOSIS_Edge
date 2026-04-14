@@ -1,0 +1,110 @@
+{
+  "theme": "light",
+  "archetype": "Swiss & High-Contrast",
+  "typography": {
+    "fonts": {
+      "heading": "'Chivo', sans-serif",
+      "body": "'IBM Plex Sans', sans-serif",
+      "mono": "'IBM Plex Mono', monospace"
+    },
+    "scale": {
+      "h1": "text-4xl tracking-tight font-semibold",
+      "h2": "text-2xl tracking-tight font-semibold",
+      "h3": "text-xl font-medium",
+      "body": "text-sm",
+      "mono_data": "text-xs font-mono tracking-tight",
+      "labels": "text-[10px] uppercase tracking-[0.1em] font-semibold"
+    },
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=Chivo:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
+  },
+  "colors": {
+    "background": {
+      "page": "bg-slate-50",
+      "card": "bg-white",
+      "sidebar": "bg-white",
+      "header": "bg-white"
+    },
+    "text": {
+      "primary": "text-slate-900",
+      "secondary": "text-slate-500",
+      "muted": "text-slate-400",
+      "inverse": "text-white"
+    },
+    "border": {
+      "default": "border-slate-200",
+      "strong": "border-slate-300",
+      "focus": "ring-slate-900"
+    },
+    "actions": {
+      "primary": "bg-slate-900 text-white hover:bg-slate-800",
+      "secondary": "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
+      "destructive": "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100",
+      "ai_button": "bg-slate-900 text-white hover:bg-slate-800 border-b-2 border-slate-950"
+    },
+    "status": {
+      "energy": "bg-sky-50 text-sky-700 border-sky-200",
+      "water": "bg-blue-50 text-blue-700 border-blue-200",
+      "materials": "bg-amber-50 text-amber-700 border-amber-200",
+      "valid": "bg-emerald-50 text-emerald-700 border-emerald-200",
+      "invalid": "bg-red-50 text-red-700 border-red-200"
+    }
+  },
+  "layout_and_spacing": {
+    "style": "Control Room Grid",
+    "container": "max-w-[1600px] mx-auto",
+    "page_padding": "p-6 md:p-8",
+    "card_padding": "p-5",
+    "gap": "gap-5",
+    "radius": "rounded-sm",
+    "borders": "1px solid border-slate-200",
+    "shadows": "shadow-sm shadow-slate-200/50"
+  },
+  "components": {
+    "sidebar": "Fixed, 260px width, white bg, right border (border-slate-200). Use extremely compact navigation links with Phosphor Icons.",
+    "top_header": "Sticky top, h-16, white bg, bottom border. Breadcrumbs for project navigation.",
+    "cards": "Flat, rounded-sm, border-slate-200, bg-white. No heavy drop shadows. Technical look.",
+    "data_tables": "Dense. text-sm body, IBM Plex Mono for all numerical values (Watts, Lumens, Area). Zebra striping (even:bg-slate-50) or simple border-b on rows. Sticky headers.",
+    "tabs": "Underline style, not pill style. border-b border-slate-200 on the list, active tab gets a 2px bottom border (border-slate-900) and text-slate-900.",
+    "badges": "rounded-sm px-2 py-0.5 text-xs font-medium border."
+  },
+  "motion": {
+    "hover": "transition-colors duration-200 ease-in-out",
+    "ai_processing": "animate-pulse on the AI processing button, with a spinner icon.",
+    "dialog": "Fade in scale (duration-200)"
+  },
+  "media": {
+    "images": [
+      {
+        "category": "auth_background_or_empty_state",
+        "url": "https://images.unsplash.com/photo-1759004673712-ae50bfd2e4d7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwzfHxtaW5pbWFsaXN0JTIwbW9kZXJuJTIwYXJjaGl0ZWN0dXJlJTIwb2ZmaWNlJTIwYnVpbGRpbmclMjB3aGl0ZXxlbnwwfHx8fDE3NzYxOTQ4ODV8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Minimalist modern building against a blue sky. Use for login page background half-split or large empty state illustration."
+      }
+    ],
+    "icons": {
+      "library": "@phosphor-icons/react",
+      "style": "weight='regular' for standard, weight='fill' for active sidebar items.",
+      "install_command": "yarn add @phosphor-icons/react"
+    }
+  },
+  "pages_to_build": [
+    "1. Dashboard / Project List: Grid of project cards, 'Create Project' button (opens Dialog), recent activity table.",
+    "2. Project Detail View: Breadcrumb nav, Project summary stats at top (Bento grid mode B), Tabs for 'Files', 'Extracted Data', 'EDGE Status'.",
+    "3. File Upload Tab: Drag & drop zone, list of uploaded files with statuses (Pending, Processed), 'Process with AI' prominent button.",
+    "4. Extracted Data Tab: Dense Data Table (Shadcn Table) showing Filename, Parameter (Watts, Lumens), Value, Source Page, Category. Export to Excel button.",
+    "5. EDGE Status Tab: Summary cards showing total points achieved, validation badges per category (Energy, Water, Materials)."
+  ],
+  "accessibility_and_testing": {
+    "testing_attributes": "All interactive elements (buttons, table rows, file upload zones, tabs) MUST have data-testid attributes (e.g., data-testid='upload-zone', data-testid='ai-process-button', data-testid='export-excel').",
+    "contrast": "Maintain APCA standards. Slate-500 text on white is AA compliant. Avoid pure white text on light gray."
+  },
+  "instructions_to_main_agent": [
+    "Install Shadcn primitives: dialog, table, tabs, button, card, badge, input, label.",
+    "Install icon library: @phosphor-icons/react.",
+    "Use pure HTML/Tailwind for structural bento-grid data layouts where possible, maintaining strict 1px borders and sharp corners (rounded-sm).",
+    "In the Results Data Table, strictly use the IBM Plex Mono font for all numerical cells to give an engineering/technical feel.",
+    "For the 'Process with AI' button, style it distinctively yet sober: dark slate background with a loading state that disables it and shows a spinner.",
+    "Never use generic placeholder images. Use the provided Unsplash image for the empty states or authentication screens.",
+    "Add Tailwind classes directly. Don't invent new custom CSS unless strictly necessary for the custom scrollbar.",
+    "Add a custom scrollbar to the globals.css (thin, slate-300 thumb, transparent track) for a premium SaaS feel."
+  ]
+}
