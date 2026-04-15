@@ -5,16 +5,14 @@ import {
   UploadSimple,
   FileText,
   Trash,
-  Lightning,
-  SpinnerGap,
   CheckCircle,
   WarningCircle,
   Clock,
+  SpinnerGap,
 } from "@phosphor-icons/react";
 
 export default function FileUploadTab({ projectId, files, onRefresh }) {
   const [uploading, setUploading] = useState(false);
-  const [processing, setProcessing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -43,18 +41,6 @@ export default function FileUploadTab({ projectId, files, onRefresh }) {
     handleFiles(e.dataTransfer.files);
   };
 
-  const handleProcess = async () => {
-    setProcessing(true);
-    try {
-      await axios.post(`${API}/projects/${projectId}/process`);
-      await onRefresh();
-    } catch (e) {
-      console.error("Error processing:", e);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   const handleDeleteFile = async (fileId) => {
     try {
       await axios.delete(`${API}/files/${fileId}`);
@@ -63,8 +49,6 @@ export default function FileUploadTab({ projectId, files, onRefresh }) {
       console.error("Error deleting file:", e);
     }
   };
-
-  const pendingCount = files.filter((f) => f.status === "pending").length;
 
   const statusIcon = (status) => {
     switch (status) {
@@ -118,33 +102,20 @@ export default function FileUploadTab({ projectId, files, onRefresh }) {
               Arrastra archivos aqui o haz click para seleccionar
             </p>
             <p className="text-xs text-slate-400">
-              Archivos de texto, fichas tecnicas, memorias, etc.
+              Fichas tecnicas, planos, memorias, facturas, etc.
             </p>
           </div>
         )}
       </div>
 
-      {/* Process Button */}
-      {pendingCount > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={handleProcess}
-            disabled={processing}
-            className="flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-sm text-sm font-medium hover:bg-slate-800 transition-colors duration-200 border-b-2 border-slate-950 disabled:opacity-70"
-            data-testid="ai-process-button"
-          >
-            {processing ? (
-              <>
-                <SpinnerGap className="w-4 h-4 animate-spin" />
-                Procesando con IA...
-              </>
-            ) : (
-              <>
-                <Lightning weight="fill" className="w-4 h-4" />
-                Procesar con IA ({pendingCount} pendiente{pendingCount > 1 ? "s" : ""})
-              </>
-            )}
-          </button>
+      {/* Info banner */}
+      {files.length > 0 && files.some(f => f.status === "pending") && (
+        <div className="bg-sky-50 border border-sky-200 rounded-sm p-3 mb-6 flex items-center gap-2" data-testid="pending-alert">
+          <Clock className="w-4 h-4 text-sky-500 flex-shrink-0" />
+          <p className="text-xs text-sky-700">
+            {files.filter(f => f.status === "pending").length} archivo(s) pendiente(s). 
+            Usa el boton <strong>"Procesar Proyecto EDGE"</strong> en la parte superior para clasificar y analizar todos los archivos.
+          </p>
         </div>
       )}
 
@@ -187,7 +158,9 @@ export default function FileUploadTab({ projectId, files, onRefresh }) {
                   <td>
                     <div className="flex items-center gap-1.5">
                       {statusIcon(f.status)}
-                      <span className="text-xs capitalize">{f.status === "pending" ? "Pendiente" : f.status === "processed" ? "Procesado" : "Error"}</span>
+                      <span className="text-xs capitalize">
+                        {f.status === "pending" ? "Pendiente" : f.status === "processed" ? "Procesado" : "Error"}
+                      </span>
                     </div>
                   </td>
                   <td>
@@ -200,7 +173,7 @@ export default function FileUploadTab({ projectId, files, onRefresh }) {
                     )}
                   </td>
                   <td className="font-mono text-xs">{f.measure_edge || "-"}</td>
-                  <td className="text-xs capitalize">{f.doc_type || "-"}</td>
+                  <td className="text-xs capitalize">{f.doc_type?.replace("_", " ") || "-"}</td>
                   <td className="font-mono text-xs">
                     {f.confidence != null ? `${(f.confidence * 100).toFixed(0)}%` : "-"}
                   </td>

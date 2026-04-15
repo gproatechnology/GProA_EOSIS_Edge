@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -7,13 +7,18 @@ import os
 import logging
 import json
 import io
+import asyncio
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+from edge_rules import EDGE_WBS, get_rule, get_all_rules, validate_project_wbs, get_project_coverage
+from edge_processors import run_specialized_processor
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -29,6 +34,9 @@ api_router = APIRouter(prefix="/api")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# In-memory job tracker for batch progress
+processing_jobs = {}
 
 # --- Pydantic Models ---
 
@@ -62,15 +70,8 @@ class FileResponse(BaseModel):
     marca: Optional[str] = None
     modelo: Optional[str] = None
     areas: Optional[list] = None
+    specialized_data: Optional[dict] = None
     uploaded_at: str
-
-class EdgeStatusResponse(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    categories: dict
-    measures: dict
-    faltantes: list
-    total_files: int
-    processed_files: int
 
 # --- AI Processing Functions ---
 
@@ -82,15 +83,13 @@ async def classify_file(content: str) -> dict:
     )
     chat.with_model("openai", "gpt-4o")
 
+    measures_list = ", ".join(EDGE_WBS.keys())
     prompt = f"""Clasifica este archivo tecnico de construccion.
 
 Clasifica en:
 1. Categoria EDGE (elige solo una): DESIGN, ENERGY, WATER, MATERIALS
-2. Medida EDGE especifica (elige la mas probable):
-   EEM01, EEM02, EEM03, EEM05, EEM06, EEM08, EEM09, EEM13, EEM16, EEM22, EEM23
-   WEM01, WEM02, WEM04, WEM07, WEM08
-   MEM01, MEM02, MEM03, MEM04, MEM05, MEM06, MEM07, MEM08, MEM09, MEM10
-   DESIGN (si aplica general)
+2. Medida EDGE especifica (elige la mas probable de esta lista):
+   {measures_list}
 3. Tipo de documento: plano, ficha_tecnica, fotografia, memoria, factura, otro
 4. Nivel de confianza (0 a 1)
 
@@ -179,57 +178,73 @@ Texto del plano:
         return []
 
 
-async def validate_edge(project_id: str) -> list:
-    files = await db.files.find(
-        {"project_id": project_id, "status": "processed"},
-        {"_id": 0}
-    ).to_list(1000)
+async def process_single_file_pipeline(file_doc: dict, job_id: str = None) -> dict:
+    """Full processing pipeline for a single file."""
+    content = file_doc.get("content_text", "")
+    file_id = file_doc["id"]
+    update = {}
 
-    if not files:
-        return []
-
-    measures_data = {}
-    for f in files:
-        measure = f.get("measure_edge", "UNKNOWN")
-        if measure not in measures_data:
-            measures_data[measure] = []
-        measures_data[measure].append(f.get("doc_type", "otro"))
-
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"validate-{uuid.uuid4()}",
-        system_message="Eres un consultor EDGE revisando documentacion. Responde SOLO en JSON valido."
-    )
-    chat.with_model("openai", "gpt-4o")
-
-    prompt = f"""Revisa esta documentacion de un proyecto EDGE.
-Identifica que medidas EDGE estan incompletas y que tipo de documento falta.
-
-Responde SOLO en JSON:
-{{"faltantes": [{{"medida": "EEM22", "faltan": ["ficha_tecnica", "fotografia"]}}]}}
-
-Datos del proyecto:
-{json.dumps(measures_data)}"""
-
-    msg = UserMessage(text=prompt)
-    response = await chat.send_message(msg)
     try:
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        data = json.loads(cleaned)
-        return data.get("faltantes", [])
-    except json.JSONDecodeError:
-        return []
+        # Step 1: Classify
+        classification = await classify_file(content)
+        update = {
+            "category_edge": classification.get("category_edge"),
+            "measure_edge": classification.get("measure_edge"),
+            "doc_type": classification.get("doc_type"),
+            "confidence": classification.get("confidence"),
+        }
+
+        measure = classification.get("measure_edge", "")
+
+        # Step 2: General data extraction
+        extraction = await extract_data(content)
+        update["watts"] = extraction.get("watts")
+        update["lumens"] = extraction.get("lumens")
+        update["tipo_equipo"] = extraction.get("tipo_equipo")
+        update["marca"] = extraction.get("marca")
+        update["modelo"] = extraction.get("modelo")
+
+        # Step 3: Specialized processor based on measure
+        specialized = await run_specialized_processor(measure, content, EMERGENT_LLM_KEY)
+        if specialized:
+            update["specialized_data"] = specialized
+
+        # Step 4: Calculate areas for plans
+        if classification.get("doc_type") == "plano":
+            areas = await calculate_areas(content)
+            update["areas"] = areas
+
+        update["status"] = "processed"
+        await db.files.update_one({"id": file_id}, {"$set": update})
+        return {"file_id": file_id, "filename": file_doc["filename"], "status": "processed", "measure": measure}
+
+    except Exception as e:
+        logger.error(f"Error processing file {file_doc['filename']}: {e}")
+        await db.files.update_one({"id": file_id}, {"$set": {"status": "error"}})
+        return {"file_id": file_id, "filename": file_doc["filename"], "status": "error", "error": str(e)}
 
 
 # --- API Routes ---
 
 @api_router.get("/")
 async def root():
-    return {"message": "EDGE Document Processor API"}
+    return {"message": "EDGE Document Processor API v2"}
 
-# Projects
+# ═══════ EDGE Rules ═══════
+
+@api_router.get("/edge-rules")
+async def get_edge_rules():
+    return get_all_rules()
+
+@api_router.get("/edge-rules/{measure}")
+async def get_edge_rule(measure: str):
+    rule = get_rule(measure.upper())
+    if not rule:
+        raise HTTPException(status_code=404, detail=f"Medida {measure} no encontrada")
+    return {measure.upper(): rule}
+
+# ═══════ Projects ═══════
+
 @api_router.post("/projects", response_model=ProjectResponse)
 async def create_project(project: ProjectCreate):
     doc = {
@@ -267,9 +282,14 @@ async def delete_project(project_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     await db.files.delete_many({"project_id": project_id})
+    # Cleanup jobs
+    to_remove = [k for k, v in processing_jobs.items() if v.get("project_id") == project_id]
+    for k in to_remove:
+        del processing_jobs[k]
     return {"message": "Proyecto eliminado"}
 
-# Files
+# ═══════ Files ═══════
+
 @api_router.post("/projects/{project_id}/files", response_model=FileResponse)
 async def upload_file(project_id: str, file: UploadFile = File(...)):
     project = await db.projects.find_one({"id": project_id}, {"_id": 0})
@@ -299,6 +319,7 @@ async def upload_file(project_id: str, file: UploadFile = File(...)):
         "marca": None,
         "modelo": None,
         "areas": None,
+        "specialized_data": None,
         "uploaded_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.files.insert_one(doc)
@@ -321,7 +342,84 @@ async def delete_file(file_id: str):
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
     return {"message": "Archivo eliminado"}
 
-# AI Processing
+# ═══════ AI Processing with Batch Progress ═══════
+
+@api_router.post("/projects/{project_id}/process-edge")
+async def process_edge_project(project_id: str):
+    """Full EDGE automation: classify + extract + specialized analysis + validate."""
+    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+
+    # Get ALL files (pending + already processed to reprocess)
+    files = await db.files.find(
+        {"project_id": project_id},
+        {"_id": 0}
+    ).to_list(500)
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No hay archivos en el proyecto")
+
+    # Create job tracker
+    job_id = str(uuid.uuid4())
+    processing_jobs[job_id] = {
+        "project_id": project_id,
+        "status": "running",
+        "total": len(files),
+        "processed": 0,
+        "current_file": "",
+        "current_step": "Iniciando...",
+        "results": [],
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Start background processing
+    asyncio.create_task(_run_batch_processing(job_id, files))
+
+    return {"job_id": job_id, "total_files": len(files), "status": "running"}
+
+
+async def _run_batch_processing(job_id: str, files: list):
+    """Background task for batch processing."""
+    job = processing_jobs[job_id]
+    try:
+        for i, f in enumerate(files):
+            job["current_file"] = f["filename"]
+            job["current_step"] = f"Clasificando ({i+1}/{len(files)})"
+            job["processed"] = i
+
+            result = await process_single_file_pipeline(f, job_id)
+            job["results"].append(result)
+
+        job["status"] = "completed"
+        job["processed"] = len(files)
+        job["current_step"] = "Completado"
+        job["current_file"] = ""
+        job["completed_at"] = datetime.now(timezone.utc).isoformat()
+    except Exception as e:
+        logger.error(f"Batch processing error: {e}")
+        job["status"] = "error"
+        job["current_step"] = f"Error: {str(e)}"
+
+
+@api_router.get("/projects/{project_id}/process-status/{job_id}")
+async def get_process_status(project_id: str, job_id: str):
+    """Get real-time batch processing status."""
+    job = processing_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+    return {
+        "job_id": job_id,
+        "status": job["status"],
+        "total": job["total"],
+        "processed": job["processed"],
+        "percent": round((job["processed"] / job["total"]) * 100) if job["total"] > 0 else 0,
+        "current_file": job["current_file"],
+        "current_step": job["current_step"],
+        "results": job.get("results", []),
+    }
+
+# Legacy simple process (backward compat)
 @api_router.post("/projects/{project_id}/process")
 async def process_project_files(project_id: str):
     files = await db.files.find(
@@ -334,38 +432,8 @@ async def process_project_files(project_id: str):
 
     results = []
     for f in files:
-        try:
-            content = f.get("content_text", "")
-
-            # Step 1: Classify
-            classification = await classify_file(content)
-            update = {
-                "status": "processed",
-                "category_edge": classification.get("category_edge"),
-                "measure_edge": classification.get("measure_edge"),
-                "doc_type": classification.get("doc_type"),
-                "confidence": classification.get("confidence"),
-            }
-
-            # Step 2: Extract data (for technical sheets)
-            extraction = await extract_data(content)
-            update["watts"] = extraction.get("watts")
-            update["lumens"] = extraction.get("lumens")
-            update["tipo_equipo"] = extraction.get("tipo_equipo")
-            update["marca"] = extraction.get("marca")
-            update["modelo"] = extraction.get("modelo")
-
-            # Step 3: Calculate areas (for plans)
-            if classification.get("doc_type") == "plano":
-                areas = await calculate_areas(content)
-                update["areas"] = areas
-
-            await db.files.update_one({"id": f["id"]}, {"$set": update})
-            results.append({"file_id": f["id"], "filename": f["filename"], "status": "processed"})
-        except Exception as e:
-            logger.error(f"Error processing file {f['filename']}: {e}")
-            await db.files.update_one({"id": f["id"]}, {"$set": {"status": "error"}})
-            results.append({"file_id": f["id"], "filename": f["filename"], "status": "error", "error": str(e)})
+        result = await process_single_file_pipeline(f)
+        results.append(result)
 
     return {"processed": len(results), "results": results}
 
@@ -374,36 +442,105 @@ async def process_single_file(file_id: str):
     f = await db.files.find_one({"id": file_id}, {"_id": 0})
     if not f:
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    result = await process_single_file_pipeline(f)
+    return result
 
-    content = f.get("content_text", "")
-    try:
-        classification = await classify_file(content)
-        update = {
-            "status": "processed",
-            "category_edge": classification.get("category_edge"),
-            "measure_edge": classification.get("measure_edge"),
-            "doc_type": classification.get("doc_type"),
-            "confidence": classification.get("confidence"),
+# ═══════ WBS Validation (Deterministic) ═══════
+
+@api_router.get("/projects/{project_id}/wbs-validation")
+async def get_wbs_validation(project_id: str):
+    """Deterministic WBS validation against EDGE rules."""
+    files = await db.files.find(
+        {"project_id": project_id, "status": "processed"},
+        {"_id": 0, "content_text": 0}
+    ).to_list(500)
+
+    validation = validate_project_wbs(files)
+    coverage = get_project_coverage(files)
+
+    return {
+        "measures": validation,
+        "coverage": coverage,
+        "total_files": await db.files.count_documents({"project_id": project_id}),
+        "processed_files": len(files),
+    }
+
+# ═══════ KPIs ═══════
+
+@api_router.get("/projects/{project_id}/kpis")
+async def get_project_kpis(project_id: str):
+    """Get KPIs per measure for the project."""
+    files = await db.files.find(
+        {"project_id": project_id, "status": "processed"},
+        {"_id": 0, "content_text": 0}
+    ).to_list(500)
+
+    kpis = {}
+
+    # EEM22/EEM23 - Lighting efficacy
+    lighting_files = [f for f in files if f.get("measure_edge") in ("EEM22", "EEM23") and f.get("specialized_data")]
+    if lighting_files:
+        total_lm = 0
+        total_w = 0
+        all_luminaires = []
+        alertas = []
+        for f in lighting_files:
+            sd = f["specialized_data"]
+            total_lm += sd.get("total_lumens", 0)
+            total_w += sd.get("total_watts", 0)
+            all_luminaires.extend(sd.get("luminarias", []))
+            alertas.extend(sd.get("alertas", []))
+
+        eficacia = round(total_lm / total_w, 2) if total_w > 0 else 0
+        kpis["EEM22"] = {
+            "nombre": "Eficacia Luminosa Global",
+            "valor": eficacia,
+            "unidad": "lm/W",
+            "umbral_edge": 90,
+            "cumple": eficacia >= 90,
+            "total_lumens": total_lm,
+            "total_watts": total_w,
+            "num_luminarias": len(all_luminaires),
+            "alertas": list(set(alertas)),
         }
-        extraction = await extract_data(content)
-        update["watts"] = extraction.get("watts")
-        update["lumens"] = extraction.get("lumens")
-        update["tipo_equipo"] = extraction.get("tipo_equipo")
-        update["marca"] = extraction.get("marca")
-        update["modelo"] = extraction.get("modelo")
 
-        if classification.get("doc_type") == "plano":
-            areas = await calculate_areas(content)
-            update["areas"] = areas
+    # EEM09 - HVAC COP
+    hvac_files = [f for f in files if f.get("measure_edge") == "EEM09" and f.get("specialized_data")]
+    if hvac_files:
+        cops = []
+        for f in hvac_files:
+            sd = f["specialized_data"]
+            for eq in sd.get("equipos", []):
+                if eq.get("cop"):
+                    cops.append(eq["cop"])
+        avg_cop = round(sum(cops) / len(cops), 2) if cops else 0
+        kpis["EEM09"] = {
+            "nombre": "COP Promedio HVAC",
+            "valor": avg_cop,
+            "unidad": "COP",
+            "umbral_edge": 3.0,
+            "cumple": avg_cop >= 3.0,
+            "num_equipos": sum(len(f["specialized_data"].get("equipos", [])) for f in hvac_files),
+        }
 
-        await db.files.update_one({"id": file_id}, {"$set": update})
-        return {"file_id": file_id, "status": "processed", **update}
-    except Exception as e:
-        logger.error(f"Error processing file {file_id}: {e}")
-        await db.files.update_one({"id": file_id}, {"$set": {"status": "error"}})
-        raise HTTPException(status_code=500, detail=str(e))
+    # Water fixtures
+    water_files = [f for f in files if f.get("measure_edge") in ("WEM01", "WEM02") and f.get("specialized_data")]
+    if water_files:
+        for f in water_files:
+            measure = f["measure_edge"]
+            sd = f["specialized_data"]
+            if measure not in kpis:
+                kpis[measure] = {
+                    "nombre": "Flujo Promedio" if measure == "WEM01" else "Descarga Promedio",
+                    "valor": sd.get("flujo_promedio", 0),
+                    "unidad": "lpm" if measure == "WEM01" else "lpd",
+                    "num_aparatos": len(sd.get("aparatos", [])),
+                }
 
-# Extracted Data
+    return kpis
+
+# ═══════ Extracted Data ═══════
+
 @api_router.get("/projects/{project_id}/extracted-data")
 async def get_extracted_data(project_id: str):
     files = await db.files.find(
@@ -412,7 +549,8 @@ async def get_extracted_data(project_id: str):
     ).to_list(500)
     return files
 
-# EDGE Status
+# ═══════ EDGE Status (enhanced) ═══════
+
 @api_router.get("/projects/{project_id}/edge-status")
 async def get_edge_status(project_id: str):
     files = await db.files.find(
@@ -428,7 +566,13 @@ async def get_edge_status(project_id: str):
         categories[cat] = categories.get(cat, 0) + 1
         measures[meas] = measures.get(meas, 0) + 1
 
-    faltantes = await validate_edge(project_id)
+    # Use deterministic WBS validation instead of AI
+    validation = validate_project_wbs(files)
+    faltantes = [
+        {"medida": k, "faltan": v["faltantes"]}
+        for k, v in validation.items()
+        if v["estado"] == "incompleto"
+    ]
 
     total = await db.files.count_documents({"project_id": project_id})
     processed = await db.files.count_documents({"project_id": project_id, "status": "processed"})
@@ -439,9 +583,11 @@ async def get_edge_status(project_id: str):
         "faltantes": faltantes,
         "total_files": total,
         "processed_files": processed,
+        "wbs_validation": validation,
     }
 
-# Export
+# ═══════ Export Enhanced ═══════
+
 @api_router.get("/projects/{project_id}/export-excel")
 async def export_excel(project_id: str):
     project = await db.projects.find_one({"id": project_id}, {"_id": 0})
@@ -454,34 +600,111 @@ async def export_excel(project_id: str):
     ).to_list(500)
 
     wb = openpyxl.Workbook()
+    header_font = Font(bold=True, color="FFFFFF", size=10)
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin', color='E2E8F0'),
+        right=Side(style='thin', color='E2E8F0'),
+        top=Side(style='thin', color='E2E8F0'),
+        bottom=Side(style='thin', color='E2E8F0'),
+    )
+
+    # Sheet 1: Classification
     ws = wb.active
-    ws.title = "Datos EDGE"
-    headers = ["Archivo", "Categoria EDGE", "Medida", "Tipo Doc", "Confianza", "Watts", "Lumens", "Equipo", "Marca", "Modelo", "Estado"]
-    ws.append(headers)
+    ws.title = "Clasificacion EDGE"
+    headers = ["Archivo", "Categoria", "Medida", "Tipo Doc", "Confianza", "Watts", "Lumens", "Equipo", "Marca", "Modelo", "Estado"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
 
-    for f in files:
-        ws.append([
-            f.get("filename", ""),
-            f.get("category_edge", ""),
-            f.get("measure_edge", ""),
-            f.get("doc_type", ""),
-            f.get("confidence", ""),
-            f.get("watts", ""),
-            f.get("lumens", ""),
-            f.get("tipo_equipo", ""),
-            f.get("marca", ""),
-            f.get("modelo", ""),
-            f.get("status", ""),
-        ])
+    for row, f in enumerate(files, 2):
+        vals = [
+            f.get("filename", ""), f.get("category_edge", ""), f.get("measure_edge", ""),
+            f.get("doc_type", ""), f.get("confidence", ""), f.get("watts", ""),
+            f.get("lumens", ""), f.get("tipo_equipo", ""), f.get("marca", ""),
+            f.get("modelo", ""), f.get("status", ""),
+        ]
+        for col, v in enumerate(vals, 1):
+            cell = ws.cell(row=row, column=col, value=v)
+            cell.border = thin_border
 
-    # Areas sheet
+    for col in range(1, len(headers) + 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 16
+
+    # Sheet 2: WBS Validation
+    processed_files = [f for f in files if f.get("status") == "processed"]
+    validation = validate_project_wbs(processed_files)
+    if validation:
+        ws2 = wb.create_sheet("Validacion WBS")
+        headers2 = ["Medida", "Categoria", "Nombre", "Estado", "Progreso", "Docs Requeridos", "Docs Disponibles", "Faltantes"]
+        for col, h in enumerate(headers2, 1):
+            cell = ws2.cell(row=1, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+        for row, (measure, data) in enumerate(sorted(validation.items()), 2):
+            ws2.cell(row=row, column=1, value=measure).border = thin_border
+            ws2.cell(row=row, column=2, value=data.get("categoria", "")).border = thin_border
+            ws2.cell(row=row, column=3, value=data.get("nombre", "")).border = thin_border
+            ws2.cell(row=row, column=4, value=data.get("estado", "")).border = thin_border
+            ws2.cell(row=row, column=5, value=f"{int(data.get('progreso', 0)*100)}%").border = thin_border
+            ws2.cell(row=row, column=6, value=", ".join(data.get("documentos_requeridos", []))).border = thin_border
+            ws2.cell(row=row, column=7, value=", ".join(data.get("documentos_disponibles", []))).border = thin_border
+            ws2.cell(row=row, column=8, value=", ".join(data.get("faltantes", []))).border = thin_border
+        for col in range(1, len(headers2) + 1):
+            ws2.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 20
+
+    # Sheet 3: EEM22 Luminaires
+    eem22_files = [f for f in files if f.get("measure_edge") in ("EEM22", "EEM23") and f.get("specialized_data")]
+    if eem22_files:
+        ws3 = wb.create_sheet("EEM22 Luminarias")
+        headers3 = ["Archivo", "ID", "Modelo", "Cantidad", "Lumens", "Watts", "Eficiencia (lm/W)", "Notas"]
+        for col, h in enumerate(headers3, 1):
+            cell = ws3.cell(row=1, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+        row = 2
+        for f in eem22_files:
+            for lum in f["specialized_data"].get("luminarias", []):
+                ws3.cell(row=row, column=1, value=f["filename"]).border = thin_border
+                ws3.cell(row=row, column=2, value=lum.get("id", "")).border = thin_border
+                ws3.cell(row=row, column=3, value=lum.get("modelo", "")).border = thin_border
+                ws3.cell(row=row, column=4, value=lum.get("cantidad", 0)).border = thin_border
+                ws3.cell(row=row, column=5, value=lum.get("lumens", 0)).border = thin_border
+                ws3.cell(row=row, column=6, value=lum.get("watts", 0)).border = thin_border
+                ws3.cell(row=row, column=7, value=lum.get("eficiencia", 0)).border = thin_border
+                ws3.cell(row=row, column=8, value=lum.get("notas", "")).border = thin_border
+                row += 1
+            # Add summary row
+            sd = f["specialized_data"]
+            ws3.cell(row=row, column=1, value="").border = thin_border
+            ws3.cell(row=row, column=2, value="TOTAL").font = Font(bold=True)
+            ws3.cell(row=row, column=4, value=sd.get("total_luminarias", 0)).font = Font(bold=True)
+            ws3.cell(row=row, column=5, value=sd.get("total_lumens", 0)).font = Font(bold=True)
+            ws3.cell(row=row, column=6, value=sd.get("total_watts", 0)).font = Font(bold=True)
+            eficacia = sd.get("eficacia_global", 0)
+            ws3.cell(row=row, column=7, value=eficacia).font = Font(bold=True, color="00AA00" if eficacia >= 90 else "FF0000")
+            row += 1
+        for col in range(1, len(headers3) + 1):
+            ws3.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 16
+
+    # Sheet 4: Areas
     files_with_areas = [f for f in files if f.get("areas")]
     if files_with_areas:
-        ws2 = wb.create_sheet("Areas")
-        ws2.append(["Archivo", "Espacio", "Area m2"])
+        ws4 = wb.create_sheet("Areas")
+        headers4 = ["Archivo", "Espacio", "Area m2"]
+        for col, h in enumerate(headers4, 1):
+            cell = ws4.cell(row=1, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+        row = 2
         for f in files_with_areas:
             for area in f["areas"]:
-                ws2.append([f["filename"], area.get("nombre", ""), area.get("area_m2", "")])
+                ws4.cell(row=row, column=1, value=f["filename"]).border = thin_border
+                ws4.cell(row=row, column=2, value=area.get("nombre", "")).border = thin_border
+                ws4.cell(row=row, column=3, value=area.get("area_m2", "")).border = thin_border
+                row += 1
 
     buffer = io.BytesIO()
     wb.save(buffer)

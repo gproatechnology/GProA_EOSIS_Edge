@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { API } from "@/App";
-import { DownloadSimple, Table as TableIcon } from "@phosphor-icons/react";
+import { DownloadSimple, Table as TableIcon, Lightning } from "@phosphor-icons/react";
 
 export default function ExtractedDataTab({ projectId, files }) {
   const [exporting, setExporting] = useState(false);
@@ -45,11 +45,19 @@ export default function ExtractedDataTab({ projectId, files }) {
         <TableIcon className="w-10 h-10 text-slate-300 mx-auto mb-3" />
         <p className="text-sm text-slate-500">Sin datos extraidos</p>
         <p className="text-xs text-slate-400 mt-1">
-          Procesa archivos con IA para ver datos extraidos aqui
+          Procesa archivos con "Procesar Proyecto EDGE" para ver datos extraidos
         </p>
       </div>
     );
   }
+
+  // Separate EEM22 files for special display
+  const eem22Files = processedFiles.filter(
+    (f) => (f.measure_edge === "EEM22" || f.measure_edge === "EEM23") && f.specialized_data?.luminarias?.length > 0
+  );
+  const otherFiles = processedFiles.filter(
+    (f) => !(f.measure_edge === "EEM22" || f.measure_edge === "EEM23") || !f.specialized_data?.luminarias?.length
+  );
 
   return (
     <div data-testid="extracted-data-tab">
@@ -69,8 +77,8 @@ export default function ExtractedDataTab({ projectId, files }) {
         </button>
       </div>
 
-      {/* Data Table */}
-      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      {/* General Data Table */}
+      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto mb-6">
         <table className="w-full data-table" data-testid="extracted-data-table">
           <thead>
             <tr>
@@ -89,16 +97,12 @@ export default function ExtractedDataTab({ projectId, files }) {
           <tbody>
             {processedFiles.map((f) => (
               <tr key={f.id} data-testid={`data-row-${f.id}`}>
+                <td><span className="truncate max-w-[180px] block text-sm">{f.filename}</span></td>
                 <td>
-                  <span className="truncate max-w-[180px] block text-sm">{f.filename}</span>
-                </td>
-                <td>
-                  <span className={`edge-badge ${categoryBadgeClass(f.category_edge)}`}>
-                    {f.category_edge}
-                  </span>
+                  <span className={`edge-badge ${categoryBadgeClass(f.category_edge)}`}>{f.category_edge}</span>
                 </td>
                 <td className="font-mono text-xs font-medium">{f.measure_edge || "-"}</td>
-                <td className="text-xs capitalize">{f.doc_type || "-"}</td>
+                <td className="text-xs capitalize">{f.doc_type?.replace("_", " ") || "-"}</td>
                 <td className="font-mono text-xs">{f.watts != null ? f.watts : "-"}</td>
                 <td className="font-mono text-xs">{f.lumens != null ? f.lumens : "-"}</td>
                 <td className="text-xs">{f.tipo_equipo || "-"}</td>
@@ -117,10 +121,93 @@ export default function ExtractedDataTab({ projectId, files }) {
         </table>
       </div>
 
+      {/* EEM22 Luminaire Detail */}
+      {eem22Files.length > 0 && (
+        <div className="mb-6" data-testid="eem22-section">
+          <div className="flex items-center gap-2 mb-3">
+            <Lightning weight="fill" className="w-4 h-4 text-sky-500" />
+            <h3 className="text-base font-medium text-slate-900" style={{ fontFamily: "'Chivo', sans-serif" }}>
+              EEM22 — Tabla de Luminarias
+            </h3>
+          </div>
+          {eem22Files.map((f) => {
+            const sd = f.specialized_data;
+            return (
+              <div key={f.id} className="mb-4">
+                <p className="text-xs text-slate-500 mb-2">Fuente: {f.filename}</p>
+                <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+                  <table className="w-full data-table" data-testid={`luminaire-table-${f.id}`}>
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Modelo</th>
+                        <th>Cantidad</th>
+                        <th>Lumens</th>
+                        <th>Watts</th>
+                        <th>Eficiencia (lm/W)</th>
+                        <th>Notas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(sd.luminarias || []).map((lum, idx) => (
+                        <tr key={idx}>
+                          <td className="font-mono text-xs">{lum.id || "-"}</td>
+                          <td className="text-xs">{lum.modelo || "-"}</td>
+                          <td className="font-mono text-xs font-medium">{lum.cantidad || 0}</td>
+                          <td className="font-mono text-xs">{lum.lumens || 0}</td>
+                          <td className="font-mono text-xs">{lum.watts || 0}</td>
+                          <td className="font-mono text-xs">
+                            <span className={lum.eficiencia >= 90 ? "text-emerald-600 font-medium" : lum.eficiencia >= 60 ? "text-amber-600" : "text-red-500"}>
+                              {lum.eficiencia || 0}
+                            </span>
+                          </td>
+                          <td className="text-[10px] text-slate-500">{lum.notas || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Summary */}
+                <div className="grid grid-cols-4 gap-3 mt-3">
+                  <div className="bg-slate-50 border border-slate-200 rounded-sm p-3 text-center">
+                    <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-0.5">Total Lumens</p>
+                    <p className="font-mono text-sm font-semibold text-slate-900">{(sd.total_lumens || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-sm p-3 text-center">
+                    <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-0.5">Total Watts</p>
+                    <p className="font-mono text-sm font-semibold text-slate-900">{(sd.total_watts || 0).toLocaleString()}</p>
+                  </div>
+                  <div className={`border rounded-sm p-3 text-center ${sd.cumple_edge ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                    <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-0.5">Eficacia Global</p>
+                    <p className={`font-mono text-sm font-bold ${sd.cumple_edge ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {sd.eficacia_global || 0} lm/W
+                    </p>
+                  </div>
+                  <div className={`border rounded-sm p-3 text-center ${sd.cumple_edge ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-0.5">EDGE</p>
+                    <p className={`text-sm font-bold ${sd.cumple_edge ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      {sd.cumple_edge ? "Cumple" : "No Cumple"}
+                    </p>
+                  </div>
+                </div>
+                {/* Alerts */}
+                {sd.alertas && sd.alertas.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {sd.alertas.map((a, i) => (
+                      <p key={i} className="text-xs text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-sm">{a}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Areas Section */}
       {processedFiles.some((f) => f.areas && f.areas.length > 0) && (
-        <div className="mt-6">
-          <h3 className="text-lg font-medium text-slate-900 mb-3" style={{ fontFamily: "'Chivo', sans-serif" }}>
+        <div>
+          <h3 className="text-base font-medium text-slate-900 mb-3" style={{ fontFamily: "'Chivo', sans-serif" }}>
             Areas Calculadas
           </h3>
           <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
