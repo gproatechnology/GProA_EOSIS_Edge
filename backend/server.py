@@ -19,6 +19,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from edge_rules import EDGE_WBS, get_rule, get_all_rules, validate_project_wbs, get_project_coverage
 from edge_processors import run_specialized_processor
+from pdf_generator import generate_edge_report
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -714,6 +715,90 @@ async def export_excel(project_id: str):
     return StreamingResponse(
         buffer,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+# ═══════ PDF Report ═══════
+
+@api_router.get("/projects/{project_id}/export-pdf")
+async def export_pdf(project_id: str):
+    """Generate professional EDGE certification PDF report."""
+    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+
+    files = await db.files.find(
+        {"project_id": project_id},
+        {"_id": 0, "content_text": 0}
+    ).to_list(500)
+
+    processed_files = [f for f in files if f.get("status") == "processed"]
+
+    # Get validation and KPIs data
+    validation_data = validate_project_wbs(processed_files)
+    coverage_data = get_project_coverage(processed_files)
+
+    validation = {
+        "measures": validation_data,
+        "coverage": coverage_data,
+        "total_files": len(files),
+        "processed_files": len(processed_files),
+    }
+
+    # Build KPIs
+    kpis = {}
+    lighting_files = [f for f in processed_files if f.get("measure_edge") in ("EEM22", "EEM23") and f.get("specialized_data")]
+    if lighting_files:
+        total_lm = sum(f["specialized_data"].get("total_lumens", 0) for f in lighting_files)
+        total_w = sum(f["specialized_data"].get("total_watts", 0) for f in lighting_files)
+        eficacia = round(total_lm / total_w, 2) if total_w > 0 else 0
+        all_alerts = []
+        for f in lighting_files:
+            all_alerts.extend(f["specialized_data"].get("alertas", []))
+        kpis["EEM22"] = {
+            "nombre": "Eficacia Luminosa Global",
+            "valor": eficacia,
+            "unidad": "lm/W",
+            "umbral_edge": 90,
+            "cumple": eficacia >= 90,
+            "alertas": list(set(all_alerts)),
+        }
+
+    hvac_files = [f for f in processed_files if f.get("measure_edge") == "EEM09" and f.get("specialized_data")]
+    if hvac_files:
+        cops = []
+        for f in hvac_files:
+            for eq in f["specialized_data"].get("equipos", []):
+                if eq.get("cop"):
+                    cops.append(eq["cop"])
+        avg_cop = round(sum(cops) / len(cops), 2) if cops else 0
+        kpis["EEM09"] = {
+            "nombre": "COP Promedio HVAC",
+            "valor": avg_cop,
+            "unidad": "COP",
+            "umbral_edge": 3.0,
+            "cumple": avg_cop >= 3.0,
+            "alertas": [],
+        }
+
+    water_files = [f for f in processed_files if f.get("measure_edge") in ("WEM01", "WEM02") and f.get("specialized_data")]
+    for f in water_files:
+        measure = f["measure_edge"]
+        sd = f["specialized_data"]
+        if measure not in kpis:
+            kpis[measure] = {
+                "nombre": "Flujo Promedio" if measure == "WEM01" else "Descarga Promedio",
+                "valor": sd.get("flujo_promedio", 0),
+                "unidad": "lpm" if measure == "WEM01" else "lpd",
+                "alertas": [],
+            }
+
+    buffer = generate_edge_report(project, files, validation, kpis)
+
+    filename = f"{project['name'].replace(' ', '_')}_Reporte_EDGE.pdf"
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
 

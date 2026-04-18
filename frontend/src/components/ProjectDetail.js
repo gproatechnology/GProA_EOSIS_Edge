@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API } from "@/App";
-import { ArrowLeft, Trash, Lightning, Gauge } from "@phosphor-icons/react";
+import { ArrowLeft, Trash, Lightning, Gauge, FilePdf } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import FileUploadTab from "@/components/FileUploadTab";
 import ExtractedDataTab from "@/components/ExtractedDataTab";
@@ -26,6 +26,7 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
   const [processingEdge, setProcessingEdge] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [currentJobId, setCurrentJobId] = useState(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const fetchProject = useCallback(async () => {
     try {
