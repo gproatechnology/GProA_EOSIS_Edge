@@ -1,7 +1,8 @@
 # EDGE Document Processor
 
-[![Tests](https://github.com/yourusername/GProA_Edge/workflows/Tests/badge.svg)](https://github.com/yourusername/GProA_Edge/actions)
-[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)](https://github.com/yourusername/GProA_Edge)
+[![Tests](https://github.com/gproatechnology/GProA_Edge/workflows/CI/badge.svg)](https://github.com/gproatechnology/GProA_Edge/actions)
+[![Backend Tests](https://img.shields.io/badge/Backend-100%25-brightgreen.svg)]()
+[![Frontend Tests](https://img.shields.io/badge/Frontend-95%25-brightgreen.svg)]()
 
 ## 🚀 AI-Powered EDGE Certification Document Manager
 
@@ -29,6 +30,40 @@ MVP complete with 100% backend tests, 95% frontend tests.
 ![MongoDB](https://img.shields.io/badge/MongoDB-4DB33D?style=for-the-badge&logo=mongodb)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css)
 ![GPT-4o](https://img.shields.io/badge/OpenAI-GPT--4o-orange?style=for-the-badge&logo=openai)
+
+## 🏗️ Architecture
+
+```mermaid
+graph TB
+    FE[React Frontend] -->|REST API| API[FastAPI Server]
+    API -->|Persist| DB[MongoDB]
+    API -->|Classify/Extract/Validate| LLM[GPT-4o]
+    LLM -->|JSON| API
+    DB -->|Query| API
+    API -->|Data/Status/Export| FE
+```
+
+## 🔄 Document Processing Flow
+
+```mermaid
+flowchart TD
+    A[File Upload] --> B[Text Extraction]
+    B --> C[AI Classify<br/>Category + Measure]
+    C --> D[AI Extract<br/>watts, lumens, equipo...]
+    D --> E{doc_type == 'plano' ?}
+    E -->|Yes| F[AI Calc Areas]
+    E -->|No| G[AI Validation<br/>Missing Docs]
+    F --> G
+    G --> H[Store in DB]
+    H --> I[Dashboard + Excel Export]
+
+    classDef startEnd fill:#e1f5fe
+    classDef ai fill:#fff3e0
+    classDef db fill:#f3e5f5
+    class A,I startEnd
+    class C,D,F,G ai
+    class H db
+```
 
 ## 🎯 Screenshots
 ![Dashboard](./screenshots/dashboard.png)
