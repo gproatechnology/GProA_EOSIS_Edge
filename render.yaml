@@ -1,0 +1,35 @@
+# Render Blueprint for GProA EDGE
+# Deploy both backend and frontend services
+
+services:
+  # === BACKEND SERVICE ===
+  - type: web
+    name: gproa-edge-backend
+    env: python
+    region: oregon
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: EMERGENT_LLM_KEY
+        sync: false
+      - key: FRONTEND_URL
+        fromService: gproa-edge-frontend
+        fromServiceVar: url
+    plan: free
+    autoDeploy: true
+
+  # === FRONTEND SERVICE ===
+  - type: web
+    name: gproa-edge-frontend
+    env: node
+    region: oregon
+    buildCommand: cd frontend && yarn install --frozen-lockfile && yarn build
+    startCommand: cd frontend && yarn start
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService: gproa-edge-backend
+        fromServiceVar: url
+    plan: free
+    autoDeploy: true
