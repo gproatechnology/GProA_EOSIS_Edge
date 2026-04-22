@@ -25,11 +25,15 @@ services:
     name: gproa-edge-frontend
     env: node
     region: oregon
-    buildCommand: cd frontend && yarn install --frozen-lockfile && yarn build
-    startCommand: cd frontend && yarn start
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm start
     envVars:
       - key: REACT_APP_API_URL
         fromService: gproa-edge-backend
         fromServiceVar: url
+      - key: DB_NAME
+        sync: false
+      - key: CORS_ORIGINS
+        value: "*"
     plan: free
     autoDeploy: true
