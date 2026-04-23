@@ -22,7 +22,7 @@ services:
         fromService:
           name: gproa-edge-frontend
           type: web
-        fromServiceVar: url
+          property: url
     plan: free
     autoDeploy: true
 
@@ -32,12 +32,12 @@ services:
     env: node
     region: oregon
     buildCommand: cd frontend && npm install && npm run build
-    startCommand: npx serve -s build -l 10000
+    startCommand: npx serve -s build -l $PORT
     envVars:
       - key: REACT_APP_API_URL
         fromService:
           name: gproa-edge-backend
           type: web
-        fromServiceVar: url
+          property: url
     plan: free
     autoDeploy: true
