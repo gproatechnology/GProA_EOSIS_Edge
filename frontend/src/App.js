@@ -6,8 +6,10 @@ import Sidebar from "@/components/Sidebar";
 import ProjectDashboard from "@/components/ProjectDashboard";
 import ProjectDetail from "@/components/ProjectDetail";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "localhost:8000";
+const API = BACKEND_URL.startsWith("localhost")
+  ? `http://${BACKEND_URL}/api`
+  : `https://${BACKEND_URL}/api`;
 
 export { API };
 
