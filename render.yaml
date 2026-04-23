@@ -19,7 +19,9 @@ services:
       - key: CORS_ORIGINS
         value: "*"
       - key: FRONTEND_URL
-        fromService: gproa-edge-frontend
+        fromService:
+          name: gproa-edge-frontend
+          type: web
         fromServiceVar: url
     plan: free
     autoDeploy: true
@@ -30,10 +32,12 @@ services:
     env: node
     region: oregon
     buildCommand: cd frontend && npm install && npm run build
-    startCommand: cd frontend && npm start
+    startCommand: npx serve -s build -l 10000
     envVars:
       - key: REACT_APP_API_URL
-        fromService: gproa-edge-backend
+        fromService:
+          name: gproa-edge-backend
+          type: web
         fromServiceVar: url
     plan: free
     autoDeploy: true
