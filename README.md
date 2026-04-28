@@ -1,91 +1,129 @@
-# EDGE Document Processor
+# EDGE Document Processor 🚀
 
 [![Tests](https://github.com/gproatechnology/GProA_Edge/workflows/CI/badge.svg)](https://github.com/gproatechnology/GProA_Edge/actions)
 [![Backend Tests](https://img.shields.io/badge/Backend-100%25-brightgreen.svg)]()
 [![Frontend Tests](https://img.shields.io/badge/Frontend-95%25-brightgreen.svg)]()
 
-## 🚀 AI-Powered EDGE Certification Document Manager
+## Plataforma de Automatización Inteligente para Certificación EDGE
 
-**EDGE Document Processor** is an intelligent platform for EDGE certification projects. Upload construction documents (plans, spec sheets, photos), and GPT-4o automatically:
-- Classifies into EDGE categories (DESIGN, ENERGY, WATER, MATERIALS)
-- Extracts data (watts, lumens, equipment, brand/model)
-- Calculates areas from floor plans
-- Validates completeness (missing docs per measure)
-- Generates Excel exports
+**EDGE Document Processor** es una plataforma profesional que automatiza completamente la certificación EDGE. Sube documentos de construcción (planos, fichas técnicas, fotos) y GPT-4o automáticamente:
 
-MVP complete with 100% backend tests, 95% frontend tests.
+- **Clasifica** en categorías EDGE (DESIGN, ENERGY, WATER, MATERIALS)
+- **Extrae** datos técnicos (watts, lumens, equipos, marcas/modelos)
+- **Calcula** áreas desde planos
+- **Valida** completitud WBS (documentos faltantes por medida)
+- **Genera** reportes Excel y PDF profesionales
+- **Calcula** KPIs con umbrales EDGE (eficacia luminosa, COP HVAC, flujos agua)
 
-## ✨ Features
-- ✅ Project CRUD & management
-- ✅ Multi-file upload with AI processing pipeline
-- ✅ EDGE classification + measure detection
-- ✅ Technical data extraction + area calculations
-- ✅ Real-time EDGE status dashboard (categories, measures, gaps)
-- ✅ Professional UI (React 19 + Tailwind + Shadcn)
-- ✅ Excel export (data + areas sheets)
+**MVP completo** con **100% tests backend**, **95% frontend**.
 
-## 🛠 Tech Stack
+## ✨ Funcionalidades Completas
+
+### ✅ Gestión de Proyectos
+- CRUD completo de proyectos + tipología
+- Dashboard con métricas (archivos, procesados, cobertura)
+
+### ✅ Procesamiento AI Automático (1-click)
+```
+Upload → Clasificar → Extraer → Procesador Especializado → Validar WBS → KPIs
+```
+- **Batch processing** con progreso real-time
+- **Pipeline paralelo** para múltiples archivos
+
+### ✅ Motor WBS (30+ Medidas EDGE)
+```
+ENERGY (11): EEM01-EEM23 (envolvente, HVAC, iluminación LED, renovables)
+WATER (5): WEM01-WEM08 (griferías, sanitarios, riego, aguas grises)
+MATERIALS (10): MEM01-MEM10 (reciclaje, madera certificada, bajo VOC)
+DESIGN (1): Cálculo áreas y planos
+```
+
+### ✅ Procesadores Especializados
+| Medida | Análisis |
+|--------|----------|
+| **EEM22/EEM23** | Tablas luminarias + eficacia global ponderada (lm/W ≥ 90) |
+| **EEM09** | HVAC: COP, SEER, EER, refrigerante |
+| **EEM16** | Paneles solares: capacidad kW, eficiencia |
+| **WEM01/02** | Griferías/sanitarios: flujo lpm, descarga |
+
+### ✅ Análisis y Reportes
+- **Validación determinística** WBS (faltantes, progreso %)
+- **KPIs** con umbrales EDGE + alertas
+- **Excel 4 hojas**: Clasificación, WBS, EEM22, Áreas
+- **PDF profesional** (ReportLab): Resumen, tabla medidas, evidencia, KPIs
+
+## 🛠️ Stack Tecnológico
+
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 ![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
 ![MongoDB](https://img.shields.io/badge/MongoDB-4DB33D?style=for-the-badge&logo=mongodb)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css)
-![GPT-4o](https://img.shields.io/badge/OpenAI-GPT--4o-orange?style=for-the-badge&logo=openai)
+![GPT-4o](https://img.shields.io/badge/GPT--4o-Orange?style=for-the-badge&logo=openai)
+![ReportLab](https://img.shields.io/badge/ReportLab-PDF-blue?style=for-the-badge&logo=pdf)
 
-## 🏗️ Architecture
+## 🏗️ Arquitectura
 
 ```mermaid
 graph TB
-    FE[React Frontend] -->|REST API| API[FastAPI Server]
-    API -->|Persist| DB[MongoDB]
-    API -->|Classify/Extract/Validate| LLM[GPT-4o]
+    FE[Frontend React] -->|REST API| API[FastAPI Server]
+    API -->|MongoDB| DB[(MongoDB)]
+    API -->|Clasificar/Extraer| LLM[GPT-4o]
     LLM -->|JSON| API
-    DB -->|Query| API
-    API -->|Data/Status/Export| FE
+    API -->|KPIs/WBS| FE
+    API -->|Excel/PDF| Export[📊 Reportes]
 ```
 
-## 🔄 Document Processing Flow
+## 🔄 Flujo de Procesamiento
 
 ```mermaid
 flowchart TD
-    A[File Upload] --> B[Text Extraction]
-    B --> C[AI Classify<br/>Category + Measure]
-    C --> D[AI Extract<br/>watts, lumens, equipo...]
-    D --> E{doc_type == 'plano' ?}
-    E -->|Yes| F[AI Calc Areas]
-    E -->|No| G[AI Validation<br/>Missing Docs]
+    A[Subir Archivo] --> B[Extracción Texto]
+    B --> C[AI Clasificar<br/>Categoría + Medida]
+    C --> D[AI Extraer<br/>watts/lumens/equipo]
+    D --> E{Tipo == 'plano'?}
+    E -->|Sí| F[AI Calcular Áreas]
+    E -->|No| G[Procesador Especializado]
     F --> G
-    G --> H[Store in DB]
-    H --> I[Dashboard + Excel Export]
+    G --> H[Validar WBS]
+    H --> I[Guardar DB + KPIs]
+    I --> J[Dashboard + Exportar]
 
-    classDef startEnd fill:#e1f5fe
+    classDef inicioFin fill:#e1f5fe
     classDef ai fill:#fff3e0
     classDef db fill:#f3e5f5
-    class A,I startEnd
+    class A,J inicioFin
     class C,D,F,G ai
-    class H db
+    class I db
 ```
 
-## 🎯 Screenshots
-![Dashboard](./screenshots/dashboard.png)
-![File Upload](./screenshots/upload.png)
-![EDGE Status](./screenshots/status.png)
-*(Run locally to generate screenshots)*
+## 🎯 Estado del Proyecto
 
-## 🚀 Quick Start
+| Fase | Estado | Cobertura |
+|------|--------|-----------|
+| **Phase 1 MVP** | ✅ Completa | 100% Backend / 95% Frontend |
+| **Phase 2 Automatización** | ✅ Completa | 30 medidas + 4 procesadores |
+| **Phase 3 (Próxima)** | ⏳ Pendiente | Google Drive + PDF OCR |
 
-### Prerequisites
-- MongoDB (local or Atlas)
-- [Emergent Universal Key](https://emergent.sh) for GPT-4o
-- Python 3.10+, Node 18+, Yarn
+**Tests ejecutados**: Backend 19/19, Frontend 22/23
+
+## 🚀 Instalación Rápida
+
+### Requisitos
+```
+MongoDB (local/Atlas)
+Emergent Universal Key (https://emergent.sh)
+Python 3.10+ | Node 18+ | Yarn
+```
 
 ### Backend
 ```bash
 cd backend
 pip install -r requirements.txt
-cp .env.example .env  # Add MONGO_URL, EMERGENT_LLM_KEY
+cp .env.example .env
+# Configurar: MONGO_URL, EMERGENT_LLM_KEY, DB_NAME
 uvicorn server:app --reload --port 8000
 ```
-API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+**Docs API**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ### Frontend
 ```bash
@@ -93,55 +131,70 @@ cd frontend
 yarn install
 yarn start
 ```
-App: [http://localhost:3000](http://localhost:3000)
+**App**: [http://localhost:3000](http://localhost:3000)
 
-## 📋 Key Endpoints
-| Method | Endpoint | Description |
+## 📋 Endpoints Principales (35+)
+
+| Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| POST | `/api/projects` | Create project |
-| GET | `/api/projects` | List projects |
-| POST | `/api/projects/{id}/files` | Upload file |
-| POST | `/api/projects/{id}/process` | AI process all pending |
-| GET | `/api/projects/{id}/edge-status` | Get EDGE compliance |
-| GET | `/api/projects/{id}/export-excel` | Download XLSX |
+| `POST` | `/api/projects` | Crear proyecto |
+| `GET` | `/api/projects` | Listar proyectos |
+| `POST` | `/api/projects/{id}/files` | Subir archivo |
+| `POST` | `/api/projects/{id}/process-edge` | **Procesar EDGE completo** (batch + progreso) |
+| `GET` | `/api/projects/{id}/wbs-validation` | Validación WBS determinística |
+| `GET` | `/api/projects/{id}/kpis` | KPIs por medida |
+| `GET` | `/api/projects/{id}/export-excel` | **Excel 4 hojas** |
+| `GET` | `/api/projects/{id}/export-pdf` | **PDF profesional** |
 
-## 🗺 Roadmap (from PRD)
-### Phase 2 (P1)
-- Google Drive auto-sync
-- PDF OCR support
-- Batch processing progress
+## 📁 Estructura del Proyecto
 
-### Future (P2)
-- ZIP exports
-- Multi-user auth
-- Real-time collab
-- Advanced CV analysis
-
-## 📁 Project Structure
 ```
 GProA_Edge/
-├── backend/          # FastAPI + MongoDB + GPT-4o
-├── frontend/         # React + Tailwind + Shadcn UI
-├── memory/PRD.md     # Product Requirements
-├── test_reports/     # Test results (95-100%)
-└── README.md         # This file
+├── backend/                 # FastAPI + MongoDB
+│   ├── server.py            # API principal (35+ endpoints)
+│   ├── edge_rules.py        # WBS 30+ medidas
+│   ├── edge_processors.py   # Procesadores especializados
+│   ├── pdf_generator.py     # Reportes PDF
+│   └── requirements.txt     # 90+ dependencias
+├── frontend/                # React 19 + Shadcn UI
+│   ├── src/components/      # 40+ componentes UI
+│   ├── src/App.js           # Router + Layout
+│   └── design_guidelines.json
+├── memory/PRD.md            # Product Requirements Document
+├── test_reports/            # Resultados tests (JSON)
+├── backend_test.py          # Suite de pruebas automatizada
+└── README.md                # ← Actualizado
 ```
 
-## 🤝 Contributing
-1. Fork & clone
-2. Create feature branch
-3. `black . && yarn lint`
-4. Test: `pytest backend/` & `yarn test`
-5. PR to `main`
+## 🗺️ Roadmap (desde PRD.md)
 
-## 📄 License
+### Phase 3 (P1 - Próxima)
+- [ ] Google Drive auto-sync
+- [ ] PDF OCR support
+- [ ] Procesadores adicionales (EEM01, EEM05...)
+- [ ] Calculadora de puntaje EDGE
+
+### Phase 4 (P2 - Futuro)
+- [ ] ZIP export estructura EDGE
+- [ ] Autenticación multi-usuario
+- [ ] Colaboración real-time
+- [ ] Análisis CV avanzado (planos)
+
+## 🤝 Contribuir
+
+1. `git clone` + `yarn install` + `pip install -r backend/requirements.txt`
+2. Formateo: `black . && yarn lint`
+3. Tests: `pytest backend/` + `yarn test`
+4. Branch: `feat/nombre-descriptivo`
+5. PR a `main`
+
+## 📄 Licencia
 MIT
 
-## 🙏 Acknowledgments
-- [EDGE Certification](https://edgebuildings.com/)
-- [Emergent Integrations](https://emergent.sh)
-- [Shadcn UI](https://ui.shadcn.com/)
+## 🙏 Agradecimientos
+- **[EDGE Buildings](https://edgebuildings.com/)** - Estándar de certificación
+- **[Emergent](https://emergent.sh)** - Integración GPT-4o
+- **[Shadcn UI](https://ui.shadcn.com/)** - Componentes profesionales
 
 ---
-⭐ Star us on GitHub!
-
+⭐ **¡Dale estrella en GitHub!** 🚀
