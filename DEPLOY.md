@@ -13,7 +13,7 @@ Follow the detailed checklist: **[RENDER_STEP_BY_STEP.md](RENDER_STEP_BY_STEP.md
 
 ### TL;DR Version:
 
-1. **Backend** → New Web Service → Python → build: `cd backend && pip install -r requirements.txt` → start: `cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT` → add env vars (MONGO_URL, EMERGENT_LLM_KEY, DB_NAME, CORS_ORIGINS=`*`)
+1. **Backend** → New Web Service → Python → build: `cd backend && pip install -r requirements.txt` → start: `cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT` → add env vars (OPENAI_API_KEY, MONGO_URL, DB_NAME, CORS_ORIGINS=`*`)
 2. Wait for Live → verify `/api/` returns JSON
 3. **Frontend** → New Web Service → Node → build: `cd frontend && npm install && npm run build` → start: `npx serve -s build -l $PORT` → add env var `REACT_APP_BACKEND_URL=gproa-edge-backend.onrender.com`
 4. Wait for Live → verify app loads
@@ -47,8 +47,8 @@ render blueprint apply
 
 | Variable | Description | Where to get |
 |----------|-------------|---------------|
+| `OPENAI_API_KEY` | OpenAI API key for GPT-4o | https://platform.openai.com/api-keys |
 | `MONGO_URL` | MongoDB Atlas connection string | Atlas → Connect → Driver |
-| `EMERGENT_LLM_KEY` | Emergent Universal Key for GPT-4o | https://emergent.sh/settings |
 | `DB_NAME` | Database name | Any name, e.g., `gproa_edge` |
 | `CORS_ORIGINS` | Allowed frontend origins | Start with `*`, then restrict to frontend URL |
 
@@ -138,7 +138,7 @@ Visit:
 
 Services communicate via HTTP:
 - Frontend → Backend: `https://gproa-edge-backend.onrender.com/api/...`
-- Backend → GPT-4o: Emergent API
+- Backend → GPT-4o: OpenAI API
 - Backend → MongoDB: Atlas connection
 
 ---

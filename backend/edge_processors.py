@@ -4,20 +4,20 @@
 import json
 import uuid
 import logging
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from openai import AsyncOpenAI
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+openai_api_key = os.environ.get('OPENAI_API_KEY') or os.environ.get('EMERGENT_LLM_KEY', '')
+openai_client = AsyncOpenAI(api_key=openai_api_key)
 
 logger = logging.getLogger(__name__)
 
 
 async def process_eem22_luminaires(content: str, api_key: str) -> dict:
     """EEM22 Specialized: Extract luminaire table and calculate global efficacy."""
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"eem22-{uuid.uuid4()}",
-        system_message="Eres un ingeniero especialista en iluminacion analizando tablas de luminarias para certificacion EDGE EEM22. Responde SOLO en JSON valido."
-    )
-    chat.with_model("openai", "gpt-4o")
-
     prompt = f"""Analiza este documento de iluminacion y extrae TODAS las luminarias encontradas.
 
 Para CADA luminaria extrae:
@@ -56,13 +56,22 @@ Responde SOLO en JSON:
 Contenido del archivo:
 {content[:4000]}"""
 
-    msg = UserMessage(text=prompt)
-    response = await chat.send_message(msg)
     try:
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        data = json.loads(cleaned)
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Eres un ingeniero especialista en iluminacion analizando tablas de luminarias para certificacion EDGE EEM22. Responde SOLO en JSON valido."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1500
+        )
+        result_text = response.choices[0].message.content.strip()
+        
+        if result_text.startswith("```"):
+            result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        
+        data = json.loads(result_text)
 
         # Calculate global efficacy
         luminarias = data.get("luminarias", [])
@@ -100,13 +109,6 @@ Contenido del archivo:
 
 async def process_eem09_hvac(content: str, api_key: str) -> dict:
     """EEM09 Specialized: Extract HVAC equipment data."""
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"eem09-{uuid.uuid4()}",
-        system_message="Eres un ingeniero mecanico analizando equipos HVAC para certificacion EDGE. Responde SOLO en JSON valido."
-    )
-    chat.with_model("openai", "gpt-4o")
-
     prompt = f"""Analiza este documento de equipos HVAC y extrae la informacion de cada equipo.
 
 Para CADA equipo extrae:
@@ -142,13 +144,22 @@ Responde SOLO en JSON:
 Contenido:
 {content[:4000]}"""
 
-    msg = UserMessage(text=prompt)
-    response = await chat.send_message(msg)
     try:
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        return json.loads(cleaned)
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Eres un ingeniero mecanico analizando equipos HVAC para certificacion EDGE. Responde SOLO en JSON valido."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1500
+        )
+        result_text = response.choices[0].message.content.strip()
+        
+        if result_text.startswith("```"):
+            result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        
+        return json.loads(result_text)
     except (json.JSONDecodeError, Exception) as e:
         logger.error(f"EEM09 processor error: {e}")
         return {"equipos": [], "cop_promedio": 0, "alertas": [str(e)]}
@@ -156,13 +167,6 @@ Contenido:
 
 async def process_eem16_renewables(content: str, api_key: str) -> dict:
     """EEM16 Specialized: Extract renewable energy data."""
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"eem16-{uuid.uuid4()}",
-        system_message="Eres un ingeniero de energias renovables analizando sistemas fotovoltaicos. Responde SOLO en JSON valido."
-    )
-    chat.with_model("openai", "gpt-4o")
-
     prompt = f"""Analiza este documento de sistema de energia renovable y extrae:
 
 - tipo_sistema: fotovoltaico, eolico, etc.
@@ -192,13 +196,22 @@ Responde SOLO en JSON:
 Contenido:
 {content[:4000]}"""
 
-    msg = UserMessage(text=prompt)
-    response = await chat.send_message(msg)
     try:
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        return json.loads(cleaned)
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Eres un ingeniero de energias renovables analizando sistemas fotovoltaicos. Responde SOLO en JSON valido."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1500
+        )
+        result_text = response.choices[0].message.content.strip()
+        
+        if result_text.startswith("```"):
+            result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        
+        return json.loads(result_text)
     except (json.JSONDecodeError, Exception) as e:
         logger.error(f"EEM16 processor error: {e}")
         return {"tipo_sistema": None, "capacidad_instalada_kw": 0, "paneles": [], "alertas": [str(e)]}
@@ -206,13 +219,6 @@ Contenido:
 
 async def process_water_fixtures(content: str, measure: str, api_key: str) -> dict:
     """WEM01/WEM02 Specialized: Extract water fixture data."""
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"water-{uuid.uuid4()}",
-        system_message="Eres un ingeniero hidraulico analizando griferias y sanitarios para EDGE. Responde SOLO en JSON valido."
-    )
-    chat.with_model("openai", "gpt-4o")
-
     prompt = f"""Analiza este documento de aparatos sanitarios/griferias para medida EDGE {measure}.
 
 Extrae para cada aparato:
@@ -240,13 +246,22 @@ Responde SOLO en JSON:
 Contenido:
 {content[:4000]}"""
 
-    msg = UserMessage(text=prompt)
-    response = await chat.send_message(msg)
     try:
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        return json.loads(cleaned)
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Eres un ingeniero hidraulico analizando griferias y sanitarios para EDGE. Responde SOLO en JSON valido."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1500
+        )
+        result_text = response.choices[0].message.content.strip()
+        
+        if result_text.startswith("```"):
+            result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        
+        return json.loads(result_text)
     except (json.JSONDecodeError, Exception) as e:
         logger.error(f"Water processor error: {e}")
         return {"aparatos": [], "flujo_promedio": 0, "alertas": [str(e)]}

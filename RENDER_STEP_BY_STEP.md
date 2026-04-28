@@ -5,7 +5,7 @@
 
 ☐ GitHub repository is ready (this repo: gproatechnology/GProA_EOSIS_Edge)
 ☐ MongoDB Atlas cluster created and connection string available
-☐ Emergent Universal Key obtained from https://emergent.sh
+☐ OpenAI API key obtained from https://platform.openai.com/api-keys
 ☐ Tested locally (optional but recommended): `uvicorn server:app --reload` works
 
 ---
@@ -32,11 +32,11 @@
 
 | Key | Value | Important |
 |-----|-------|-----------|
-| `MONGO_URL` | *your MongoDB Atlas URI* | 🔒 **SECRET** |
-| `EMERGENT_LLM_KEY` | *your Emergent API key* | 🔒 **SECRET** |
+| `OPENAI_API_KEY` | *your OpenAI API key* | 🔒 **SECRET** (required) |
+| `MONGO_URL` | *your MongoDB Atlas URI* | 🔒 **SECRET** (required) |
 | `DB_NAME` | `gproa_edge` | |
 | `CORS_ORIGINS` | `*` | ⚠️ Will update later |
-| `FRONTEND_URL` | *(leave empty)* | |
+| `FRONTEND_URL` | *(leave empty)* | Optional |
 
 **Action:** Click "Create Web Service"
 

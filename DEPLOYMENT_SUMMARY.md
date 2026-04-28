@@ -8,7 +8,7 @@
 
 ### New Documentation Files
 - **`RENDER_STEP_BY_STEP.md`** — Detailed manual deployment guide (checklist format)
-- **`ENV_SETUP.md`** — Environment variables setup (MongoDB, Emergent key)
+- **`ENV_SETUP.md`** — Environment variables setup (MongoDB, OpenAI key)
 - **`DEPLOY.md`** — Quick deployment reference card
 - **`TESTING_CHECKLIST.md`** — Post-deployment verification checklist
 - **`RENDER_DEPLOY.md`** — Original comprehensive deployment guide
@@ -35,7 +35,7 @@ cd GProA_EOSIS_Edge
 
 # Create .env (for local testing)
 cp .env.example .env
-# Edit .env with your MongoDB URL and Emergent key
+# Edit .env with your MongoDB URL and OpenAI API key
 ```
 
 ### Step 2: Render Dashboard — Create Backend
@@ -57,8 +57,8 @@ cp .env.example .env
 
 | Key | Value |
 |-----|-------|
+| `OPENAI_API_KEY` | *Your OpenAI API key* |
 | `MONGO_URL` | *Your MongoDB Atlas URI* |
-| `EMERGENT_LLM_KEY` | *Your Emergent API key* |
 | `DB_NAME` | `gproa_edge` |
 | `CORS_ORIGINS` | `*` |
 | `FRONTEND_URL` | *(leave empty)* |
@@ -148,10 +148,10 @@ GProA_EOSIS_Edge/
 
 ### Backend (Render Service)
 ```bash
-MONGO_URL          # MongoDB Atlas connection (Secret)
-EMERGENT_LLM_KEY   # Emergent API key for GPT-4o (Secret)
-DB_NAME            # gproa_edge
-CORS_ORIGINS       # * → then change to frontend URL
+OPENAI_API_KEY      # OpenAI API key for GPT-4o (Secret)
+MONGO_URL           # MongoDB Atlas connection (Secret)
+DB_NAME             # gproa_edge
+CORS_ORIGINS        # * → then change to frontend URL
 ```
 
 ### Frontend (Render Service)

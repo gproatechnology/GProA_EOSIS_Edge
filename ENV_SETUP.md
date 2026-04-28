@@ -1,5 +1,26 @@
 # Setting Up Environment Variables for GProA EDGE
 
+## 🤖 OpenAI API Key (Required)
+
+### 1. Get Your OpenAI API Key
+- Visit https://platform.openai.com/api-keys
+- Sign in to your OpenAI account
+- Click **"Create new secret key"**
+- Copy the key (starts with `sk-...`)
+- **Add credits** to your account if needed (billing → payment methods)
+
+### 2. Set `OPENAI_API_KEY` in Render
+Backend service → Settings → Environment Variables:
+```
+Key: OPENAI_API_KEY
+Value: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Secret: ✅ Yes
+```
+
+**Note:** The code will automatically use `OPENAI_API_KEY`. If you still have an Emergent key, you can alternatively set `EMERGENT_LLM_KEY` (legacy), but OpenAI direct is now the default.
+
+---
+
 ## 🗄️ MongoDB Atlas Setup
 
 ### 1. Create MongoDB Atlas Account

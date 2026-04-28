@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from openai import AsyncOpenAI
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
@@ -28,7 +28,9 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+# OpenAI client (uses OPENAI_API_KEY or EMERGENT_LLM_KEY as fallback)
+openai_api_key = os.environ.get('OPENAI_API_KEY') or os.environ.get('EMERGENT_LLM_KEY', '')
+openai_client = AsyncOpenAI(api_key=openai_api_key)
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -77,13 +79,7 @@ class FileResponse(BaseModel):
 # --- AI Processing Functions ---
 
 async def classify_file(content: str) -> dict:
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"classify-{uuid.uuid4()}",
-        system_message="Eres un consultor experto en certificacion EDGE. Responde SOLO en JSON valido. No expliques nada."
-    )
-    chat.with_model("openai", "gpt-4o")
-
+    """Classify file using OpenAI GPT-4o."""
     measures_list = ", ".join(EDGE_WBS.keys())
     prompt = f"""Clasifica este archivo tecnico de construccion.
 
@@ -100,26 +96,30 @@ Responde SOLO en JSON:
 Contenido del archivo:
 {content[:3000]}"""
 
-    msg = UserMessage(text=prompt)
-    response = await chat.send_message(msg)
     try:
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        logger.error(f"Failed to parse classification response: {response}")
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Eres un consultor experto en certificacion EDGE. Responde SOLO en JSON valido. No expliques nada."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+        result_text = response.choices[0].message.content.strip()
+        
+        # Clean markdown code blocks if present
+        if result_text.startswith("```"):
+            result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        
+        return json.loads(result_text)
+    except (json.JSONDecodeError, Exception) as e:
+        logger.error(f"Failed to parse classification response: {e}")
         return {"category_edge": "DESIGN", "measure_edge": "DESIGN", "doc_type": "otro", "confidence": 0.1}
 
 
 async def extract_data(content: str) -> dict:
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"extract-{uuid.uuid4()}",
-        system_message="Eres un ingeniero analizando fichas tecnicas de equipos. Responde SOLO en JSON valido."
-    )
-    chat.with_model("openai", "gpt-4o")
-
+    """Extract technical data using OpenAI GPT-4o."""
     prompt = f"""Extrae la siguiente informacion si esta disponible:
 - watts (numero)
 - lumens (numero)
@@ -135,26 +135,29 @@ Responde SOLO en JSON:
 Contenido:
 {content[:3000]}"""
 
-    msg = UserMessage(text=prompt)
-    response = await chat.send_message(msg)
     try:
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        logger.error(f"Failed to parse extraction response: {response}")
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Eres un ingeniero analizando fichas tecnicas de equipos. Responde SOLO en JSON valido."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+        result_text = response.choices[0].message.content.strip()
+        
+        if result_text.startswith("```"):
+            result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        
+        return json.loads(result_text)
+    except (json.JSONDecodeError, Exception) as e:
+        logger.error(f"Failed to parse extraction response: {e}")
         return {"watts": None, "lumens": None, "tipo_equipo": None, "marca": None, "modelo": None}
 
 
 async def calculate_areas(content: str) -> list:
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"areas-{uuid.uuid4()}",
-        system_message="Eres un arquitecto experto en interpretacion de planos. Responde SOLO en JSON valido."
-    )
-    chat.with_model("openai", "gpt-4o")
-
+    """Calculate areas from floor plan text using OpenAI GPT-4o."""
     prompt = f"""A partir del siguiente texto extraido de un plano (OCR), identifica espacios y sus dimensiones.
 Calcula el area de cada espacio en m2.
 
@@ -166,16 +169,25 @@ Responde SOLO en JSON:
 Texto del plano:
 {content[:3000]}"""
 
-    msg = UserMessage(text=prompt)
-    response = await chat.send_message(msg)
     try:
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        data = json.loads(cleaned)
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Eres un arquitecto experto en interpretacion de planos. Responde SOLO en JSON valido."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1000
+        )
+        result_text = response.choices[0].message.content.strip()
+        
+        if result_text.startswith("```"):
+            result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        
+        data = json.loads(result_text)
         return data.get("espacios", [])
-    except json.JSONDecodeError:
-        logger.error(f"Failed to parse areas response: {response}")
+    except (json.JSONDecodeError, Exception) as e:
+        logger.error(f"Failed to parse areas response: {e}")
         return []
 
 
