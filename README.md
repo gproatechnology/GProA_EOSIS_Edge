@@ -78,7 +78,9 @@ flowchart TD
 - [Emergent Universal Key](https://emergent.sh) for GPT-4o
 - Python 3.10+, Node 18+, Yarn
 
-### Backend
+### Local Development
+
+**Backend:**
 ```bash
 cd backend
 pip install -r requirements.txt
@@ -87,7 +89,7 @@ uvicorn server:app --reload --port 8000
 ```
 API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### Frontend
+**Frontend:**
 ```bash
 cd frontend
 yarn install
@@ -95,17 +97,71 @@ yarn start
 ```
 App: [http://localhost:3000](http://localhost:3000)
 
-## 📋 Key Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/projects` | Create project |
-| GET | `/api/projects` | List projects |
-| POST | `/api/projects/{id}/files` | Upload file |
-| POST | `/api/projects/{id}/process` | AI process all pending |
-| GET | `/api/projects/{id}/edge-status` | Get EDGE compliance |
-| GET | `/api/projects/{id}/export-excel` | Download XLSX |
+---
 
-## 🗺 Roadmap (from PRD)
+## ☁️ Deployment to Render
+
+Deploy this application to Render.com as two separate Web Services (Backend + Frontend).
+
+**⏱️ Time:** ~15 minutes  
+**💰 Cost:** Free tier available (750 hrs/month each)
+
+### 📋 Step-by-Step Guide
+
+See **[RENDER_STEP_BY_STEP.md](RENDER_STEP_BY_STEP.md)** for detailed instructions.
+
+**Quick summary:**
+1. **Backend Service** — Python 3, build: `cd backend && pip install -r requirements.txt`, start: `cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT`
+2. **Frontend Service** — Node, build: `cd frontend && npm install && npm run build`, start: `npx serve -s build -l $PORT`
+3. Set environment variables (see below)
+4. Update CORS and redeploy
+5. Test full flow
+
+### 🔑 Required Environment Variables
+
+#### Backend
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `MONGO_URL` | MongoDB Atlas connection string | `mongodb+srv://user:pass@cluster.mongodb.net/gproa_edge?retryWrites=true&w=majority` |
+| `EMERGENT_LLM_KEY` | Emergent API key for GPT-4o | `sk-xxxxxxxxxxxxxxxx` |
+| `DB_NAME` | Database name | `gproa_edge` |
+| `CORS_ORIGINS` | Allowed frontend origins | `*` (dev) or `https://frontend.onrender.com` (prod) |
+
+#### Frontend
+| Variable | Description | Value format |
+|----------|-------------|--------------|
+| `REACT_APP_BACKEND_URL` | Backend service hostname | `gproa-edge-backend.onrender.com` (no `https://`) |
+
+⚠️ **Important:** Do NOT include `https://` in `REACT_APP_BACKEND_URL` — the frontend adds it automatically.
+
+See **[ENV_SETUP.md](ENV_SETUP.md)** for detailed environment configuration (MongoDB Atlas, Emergent key, etc.).
+
+---
+
+## ✅ Testing After Deployment
+
+After deploying to Render, run the verification script:
+
+```bash
+# Clone the verification script to your local machine
+curl -O https://raw.githubusercontent.com/gproatechnology/GProA_EOSIS_Edge/main/verify-deployment.sh
+chmod +x verify-deployment.sh
+
+# Run with your URLs
+./verify-deployment.sh https://gproa-edge-backend.onrender.com https://gproa-edge-frontend.onrender.com
+```
+
+Or manually test:
+
+1. **Backend health:** `GET https://...onrender.com/api/` → should return JSON
+2. **Frontend loads:** Open frontend URL in browser
+3. **Full flow:** Create project → upload file → process → export
+
+See **[RENDER_STEP_BY_STEP.md](RENDER_STEP_BY_STEP.md)** for complete testing checklist.
+
+---
+
+## 🗺️ Roadmap (from PRD)
 ### Phase 2 (P1)
 - Google Drive auto-sync
 - PDF OCR support

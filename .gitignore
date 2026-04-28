@@ -27,13 +27,20 @@ next-env.d.ts
 
 # Production builds
 /build
-dist/
-dist
+/dist
+/dist
 
-# Environment files (comprehensive coverage)
+# Python
+__pycache__/
+*pyc*
+venv/
+.venv/
 
-*token.json*
-*credentials.json*
+# Environment files (keep .env.example)
+.env
+.env.*
+*.env
+!.env.example
 
 # Logs and debug files
 npm-debug.log*
@@ -46,25 +53,12 @@ dump.rdb
 .DS_Store
 *.pem
 
-# Python
-__pycache__/
-*pyc*
-venv/
-.venv/
+# Credentials and secrets
+*token.json*
+*credentials.json*
+.credentials
 
-# Development tools
-chainlit.md
-.chainlit
-.ipynb_checkpoints/
-.ac
-
-# Deployment
-.vercel
-
-# Data and databases
-agenthub/agents/youtube/db
-
-# Archive files and large assets
+# Archives
 **/*.zip
 **/*.tar.gz
 **/*.tar
@@ -76,26 +70,8 @@ agenthub/agents/youtube/db
 # Build caches
 .cache/
 
+# Project specific
 memory/test_credentials.md
-
-# Mobile development
-android-sdk/frontend/node_modules/.cache/default-development/0.pack
-frontend/node_modules/.cache/default-development/0.pack
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
+.chainlit
+.ipynb_checkpoints/
+.ac
