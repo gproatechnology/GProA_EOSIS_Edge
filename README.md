@@ -81,9 +81,9 @@ flowchart TD
     B --> C[AI Clasificar<br/>Categoría + Medida]
     C --> D[AI Extraer<br/>watts/lumens/equipo]
     D --> E{Tipo == 'plano'?}
-    E -->|Sí| F[AI Calcular Áreas]
-    E -->|No| G[Procesador Especializado]
-    F --> G
+        E -->|Sí| F[AI Calcular Áreas]
+            E -->|No| G[Procesador Especializado]
+                F --> G
     G --> H[Validar WBS]
     H --> I[Guardar DB + KPIs]
     I --> J[Dashboard + Exportar]
