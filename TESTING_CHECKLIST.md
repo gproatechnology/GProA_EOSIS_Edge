@@ -3,8 +3,8 @@
 ## Environment Setup Test
 
 ### 1. Backend Environment Variables
-- [ ] `MONGO_URL` is set in Render backend service
-- [ ] `EMERGENT_LLM_KEY` is set (marked as Secret)
+- [ ] `OPENAI_API_KEY` is set in Render backend service (marked as Secret)
+- [ ] `MONGO_URL` is set (marked as Secret)
 - [ ] `DB_NAME` is set to `gproa_edge`
 - [ ] `CORS_ORIGINS` is set (start with `*`, later restrict)
 

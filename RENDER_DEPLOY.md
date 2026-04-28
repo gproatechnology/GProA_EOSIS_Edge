@@ -6,7 +6,7 @@ This guide walks you through deploying GProA EDGE to Render.com as two separate 
 
 - GitHub repository connected to Render
 - MongoDB Atlas account (or self-hosted MongoDB)
-- Emergent Universal Key from [emergent.sh](https://emergent.sh)
+- OpenAI API key from [platform.openai.com](https://platform.openai.com/api-keys)
 - Node.js 18+ and Python 3.10+ installed locally (for testing)
 
 ---
@@ -27,8 +27,8 @@ nano .env  # or use any editor
 
 | Variable | Description | Example |
 |----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key for GPT-4o | `sk-xxxxxxxxxxxxxxxxxxxx` |
 | `MONGO_URL` | Full MongoDB connection string | `mongodb+srv://user:pass@cluster.mongodb.net/gproa_edge` |
-| `EMERGENT_LLM_KEY` | API key for GPT-4o via Emergent | `sk-xxxxxxxxxxxxxxxxxxxx` |
 | `DB_NAME` | Database name to use | `gproa_edge` |
 | `CORS_ORIGINS` | Allowed frontend origins (comma-separated) | `*` (for testing) or `https://your-frontend.onrender.com` |
 
@@ -79,8 +79,8 @@ Click **Add Environment Variable** for each:
 
 | Key | Value | Notes |
 |-----|-------|-------|
+| `OPENAI_API_KEY` | *Your OpenAI API key* | **Secret** |
 | `MONGO_URL` | *Your MongoDB Atlas connection string* | **Secret** |
-| `EMERGENT_LLM_KEY` | *Your Emergent API key* | **Secret** |
 | `DB_NAME` | `gproa_edge` | |
 | `CORS_ORIGINS` | `*` | Temporary - will update later |
 | `FRONTEND_URL` | *(leave empty for now)* | Will fill after frontend deploys |
@@ -254,7 +254,7 @@ To use your own domain:
 | 502 Bad Gateway | Backend crashed – check logs for import errors |
 | Slow AI processing | Expected on Free tier (CPU shared). Consider paid plan |
 | Files not saving | Verify `MONGO_URL` is correct and DB is accessible |
-| AI not responding | Verify `EMERGENT_LLM_KEY` is valid and has credits |
+| AI not responding | Verify `OPENAI_API_KEY` is valid and has credits |
 
 ---
 

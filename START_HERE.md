@@ -12,7 +12,7 @@
 
 ### Documentation Files
 - ✅ **RENDER_STEP_BY_STEP.md** — Main guide (use this)
-- ✅ **ENV_SETUP.md** — Environment variables (MongoDB + Emergent)
+- ✅ **ENV_SETUP.md** — Environment variables (MongoDB + OpenAI)
 - ✅ **DEPLOY.md** — Quick reference card
 - ✅ **DEPLOYMENT_SUMMARY.md** — One-page overview
 - ✅ **RENDER_DEPLOY.md** — Original comprehensive guide
@@ -56,7 +56,7 @@ Before you start, have ready:
 
 - [ ] **GitHub repository access** — You have push rights to `gproatechnology/GProA_EOSIS_Edge`
 - [ ] **MongoDB Atlas** — Cluster created, connection string copied
-- [ ] **Emergent API Key** — From https://emergent.sh/settings (Universal Key)
+- [ ] **OpenAI API Key** — From https://platform.openai.com/api-keys
 - [ ] **Render account** — Sign up at https://render.com (GitHub OAuth available)
 - [ ] **Local test (optional)** — Backend runs on localhost:8000 successfully
 
@@ -69,7 +69,7 @@ Follow **RENDER_STEP_BY_STEP.md** exactly:
 **Phase 1:** Create Backend Service
 - Render Dashboard → New → Web Service
 - Python 3, build/start commands as specified
-- Add environment variables (MONGO_URL, EMERGENT_LLM_KEY, DB_NAME, CORS_ORIGINS='*')
+- Add environment variables (OPENAI_API_KEY, MONGO_URL, DB_NAME, CORS_ORIGINS='*')
 - Wait for Live → record URL
 
 **Phase 2:** Create Frontend Service
@@ -118,7 +118,7 @@ Follow **RENDER_STEP_BY_STEP.md** exactly:
 
 1. **Test locally first** — Run `uvicorn server:app --reload` to verify everything works
 2. **Check logs** — Render dashboard → Logs tab shows real-time output
-3. **Use Secrets** — Mark `MONGO_URL` and `EMERGENT_LLM_KEY` as "Secret" in Render
+3. **Use Secrets** — Mark `OPENAI_API_KEY` and `MONGO_URL` as "Secret" in Render
 4. **Monitor free tier** — 750 hrs/month each = ~31 days if running 24/7
 5. **Backup MongoDB** — Atlas provides free automated backups
 
@@ -129,7 +129,7 @@ Follow **RENDER_STEP_BY_STEP.md** exactly:
 | File | Purpose |
 |------|---------|
 | **RENDER_STEP_BY_STEP.md** | ⭐ Main deployment walkthrough |
-| ENV_SETUP.md | How to get MongoDB + Emergent keys |
+| ENV_SETUP.md | How to get MongoDB + OpenAI keys |
 | DEPLOY.md | One-page quick reference |
 | DEPLOYMENT_SUMMARY.md | High-level overview |
 | TESTING_CHECKLIST.md | QA after deployment |
