@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Override for development with hot-reload
+  backend:
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__  # Avoid caching pyc
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DEMO_MODE=true
+    # No need to rebuild on code changes
+
+  frontend:
+    # Use development server instead of nginx build
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/build
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    command: npm start
