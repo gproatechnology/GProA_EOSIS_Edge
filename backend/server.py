@@ -1423,10 +1423,18 @@ if frontend_build_dir.exists():
     # Catch-all route to serve index.html for SPA
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        path_to_file = frontend_build_dir / full_path
-        if path_to_file.is_file():
-            return FileResponse(path_to_file)
-        return FileResponse(frontend_build_dir / "index.html")
+        try:
+            path_to_file = frontend_build_dir / full_path
+            if path_to_file.is_file():
+                return FileResponse(str(path_to_file))
+            
+            index_file = frontend_build_dir / "index.html"
+            if index_file.is_file():
+                return FileResponse(str(index_file))
+            
+            return {"error": "Frontend build/index.html not found. Build may have failed."}, 404
+        except Exception as e:
+            return {"error": f"Internal server error: {str(e)}"}, 500
 else:
     logger.warning("Frontend build directory not found. API only mode.")
 
