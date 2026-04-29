@@ -1,8 +1,9 @@
-# Render Blueprint for GProA EDGE
-# Deploy both backend and frontend services
+# Render Blueprint for GProA EDGE (submain branch)
+# Deploy both backend and frontend services in DEMO MODE (no API keys required)
+# Backend uses SQLite + Mock AI responses automatically
 
 services:
-  # === BACKEND SERVICE ===
+  # === BACKEND SERVICE (Python FastAPI) ===
   - type: web
     name: gproa-edge-backend
     env: python
@@ -10,21 +11,36 @@ services:
     buildCommand: cd backend && pip install -r requirements.txt
     startCommand: cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT
     envVars:
+      # Database: Leave empty to use SQLite (demo mode)
       - key: MONGO_URL
         sync: false
-      - key: EMERGENT_LLM_KEY
+        # IMPORTANT: Do NOT set this value to use SQLite fallback
+      
+      # OpenAI: Leave empty to use mock AI responses (demo mode)
+      - key: OPENAI_API_KEY
         sync: false
+        # IMPORTANT: Do NOT set this value to use mock responses
+      
+      # Optional: Force demo mode explicitly (default: true when no API key)
+      - key: DEMO_MODE
+        value: "true"
+      
+      # Database file name (SQLite will create ./data/gproa_edge.db)
       - key: DB_NAME
-        sync: false
+        value: gproa_edge
+      
+      # CORS: Allow all origins in demo, restrict in production
       - key: CORS_ORIGINS
         value: "*"
+      
+      # Frontend URL (auto-detected)
       - key: FRONTEND_URL
         fromService:
           name: gproa-edge-frontend
           type: web
           property: host
 
-  # === FRONTEND SERVICE ===
+  # === FRONTEND SERVICE (React) ===
   - type: web
     name: gproa-edge-frontend
     env: node
@@ -32,6 +48,7 @@ services:
     buildCommand: cd frontend && npm install && npm run build
     startCommand: npx serve -s build -l $PORT
     envVars:
+      # Backend URL (auto-injected by Render)
       - key: REACT_APP_BACKEND_URL
         fromService:
           name: gproa-edge-backend

@@ -74,67 +74,75 @@ flowchart TD
 ## 🚀 Quick Start
 
 ### Prerequisites
-- MongoDB (local or Atlas)
-- [Emergent Universal Key](https://emergent.sh) for GPT-4o
-- Python 3.10+, Node 18+, Yarn
+- Python 3.10+ (recommended: Python 3.12 for best aiosqlite compatibility)
+- Node 18+, Yarn (for frontend)
+- MongoDB (optional – only needed for production, not demo)
+- [OpenAI API Key](https://platform.openai.com/api-keys) (optional – only needed for production, not demo)
 
-### Local Development
+### 🎯 Demo Mode (Zero Config – Recommended for Testing)
+Run the application **without MongoDB or OpenAI** using SQLite + mock AI responses:
 
-**Backend:**
 ```bash
+# Backend (auto-detects demo mode)
 cd backend
+cp .env.example .env  # Keep defaults: MONGO_URL empty, OPENAI_API_KEY empty
 pip install -r requirements.txt
-cp .env.example .env  # Add MONGO_URL, EMERGENT_LLM_KEY
 uvicorn server:app --reload --port 8000
-```
-API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+# API docs: http://localhost:8000/docs
 
-**Frontend:**
-```bash
+# Frontend (in another terminal)
 cd frontend
 yarn install
 yarn start
+# App: http://localhost:3000
 ```
-App: [http://localhost:3000](http://localhost:3000)
+
+**What happens in demo mode:**
+- ✅ SQLite database created automatically at `backend/data/gproa_edge.db`
+- ✅ AI classification & extraction uses deterministic mock responses
+- ✅ All features work: upload, process, validate, export (Excel/PDF)
+- ✅ No external API calls – perfect for demos, offline testing, CI/CD
 
 ---
 
 ## ☁️ Deployment to Render
 
-Deploy this application to Render.com as two separate Web Services (Backend + Frontend).
+### 🎯 **Deploy Demo Mode (No API Keys Required)**
+Deploy instantly without configuring MongoDB or OpenAI. Uses SQLite + mock AI.
 
-**⏱️ Time:** ~15 minutes  
-**💰 Cost:** Free tier available (750 hrs/month each)
+**Steps:**
+1. Go to [Render.com](https://render.com) → **New** → **Blueprint**
+2. Connect repo: `gproatechnology/GProA_EOSIS_Edge`
+3. **Select branch: `submain`** (demo-ready branch)
+4. Apply blueprint → services auto-created
+5. Wait ~5 minutes → your app is live at `*.onrender.com`
 
-### 📋 Step-by-Step Guide
+**Variables are pre-configured** in `render.yaml`:
+- `MONGO_URL` → empty (SQLite)
+- `OPENAI_API_KEY` → empty (mock AI)
+- `DEMO_MODE` → `true`
+- `CORS_ORIGINS` → `*`
 
-See **[RENDER_STEP_BY_STEP.md](RENDER_STEP_BY_STEP.md)** for detailed instructions.
+No manual environment setup needed. See **[RENDER_DEPLOY_SUBMAIN.md](RENDER_DEPLOY_SUBMAIN.md)** for full details.
 
-**Quick summary:**
-1. **Backend Service** — Python 3, build: `cd backend && pip install -r requirements.txt`, start: `cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT`
-2. **Frontend Service** — Node, build: `cd frontend && npm install && npm run build`, start: `npx serve -s build -l $PORT`
-3. Set environment variables (see below)
-4. Update CORS and redeploy
-5. Test full flow
+---
 
-### 🔑 Required Environment Variables
+### 🔧 **Advanced: Production Mode (with MongoDB + OpenAI)**
+For real AI processing and persistent cloud database:
 
-#### Backend
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `MONGO_URL` | MongoDB Atlas connection string | `mongodb+srv://user:pass@cluster.mongodb.net/gproa_edge?retryWrites=true&w=majority` |
-| `EMERGENT_LLM_KEY` | Emergent API key for GPT-4o | `sk-xxxxxxxxxxxxxxxx` |
-| `DB_NAME` | Database name | `gproa_edge` |
-| `CORS_ORIGINS` | Allowed frontend origins | `*` (dev) or `https://frontend.onrender.com` (prod) |
+**Backend Environment Variables:**
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `MONGO_URL` | MongoDB Atlas connection string | ✅ Yes |
+| `OPENAI_API_KEY` | OpenAI API key (GPT-4o) | ✅ Yes |
+| `DEMO_MODE` | Set to `false` | No (default) |
 
-#### Frontend
-| Variable | Description | Value format |
-|----------|-------------|--------------|
-| `REACT_APP_BACKEND_URL` | Backend service hostname | `gproa-edge-backend.onrender.com` (no `https://`) |
+**Frontend Environment Variables:**
+| Variable | Description |
+|----------|-------------|
+| `REACT_APP_BACKEND_URL` | Backend URL (e.g., `gproa-edge-backend.onrender.com`) |
 
-⚠️ **Important:** Do NOT include `https://` in `REACT_APP_BACKEND_URL` — the frontend adds it automatically.
-
-See **[ENV_SETUP.md](ENV_SETUP.md)** for detailed environment configuration (MongoDB Atlas, Emergent key, etc.).
+See **[ENV_SETUP.md](ENV_SETUP.md)** for detailed production configuration.
 
 ---
 
