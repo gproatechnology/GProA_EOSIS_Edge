@@ -6,6 +6,9 @@ import Sidebar from "@/components/Sidebar";
 import ProjectDashboard from "@/components/ProjectDashboard";
 import ProjectDetail from "@/components/ProjectDetail";
 
+import SplashScreen from "./components/SplashScreen";
+import Login from "./components/Login";
+
 let API = "/api";
 if (process.env.REACT_APP_BACKEND_URL) {
   const url = process.env.REACT_APP_BACKEND_URL;
@@ -81,10 +84,38 @@ function ProjectDetailWrapper({ onProjectDeleted }) {
   );
 }
 
+function MainApp() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Check local storage for existing session
+  useEffect(() => {
+    const session = localStorage.getItem("gproa_session");
+    if (session) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleLogin = () => {
+    localStorage.setItem("gproa_session", "true");
+    setIsAuthenticated(true);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
+
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  return <AppLayout />;
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <AppLayout />
+      <MainApp />
     </BrowserRouter>
   );
 }
