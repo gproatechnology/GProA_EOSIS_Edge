@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 import os
@@ -1413,6 +1414,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+frontend_build_dir = ROOT_DIR.parent / "frontend" / "build"
+if frontend_build_dir.exists():
+    # Serve static assets
+    app.mount("/static", StaticFiles(directory=str(frontend_build_dir / "static")), name="static")
+
+    # Catch-all route to serve index.html for SPA
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        path_to_file = frontend_build_dir / full_path
+        if path_to_file.is_file():
+            return FileResponse(path_to_file)
+        return FileResponse(frontend_build_dir / "index.html")
+else:
+    logger.warning("Frontend build directory not found. API only mode.")
 
 @app.on_event("shutdown")
 async def shutdown_db():

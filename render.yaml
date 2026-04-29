@@ -1,14 +1,15 @@
 # Render Blueprint for GProA EDGE (submain branch)
-# Deploy both backend and frontend services in DEMO MODE (no API keys required)
-# Backend uses SQLite + Mock AI responses automatically
+# Deploy as a single unified web service (Monolith) in DEMO MODE
+# FastAPI serves the React frontend
 
 services:
-  # === BACKEND SERVICE (Python FastAPI) ===
+  # === UNIFIED SERVICE (FastAPI + React SPA) ===
   - type: web
-    name: gproa-edge-backend
+    name: gproa-edge-monolith
     env: python
     region: oregon
-    buildCommand: cd backend && pip install -r requirements.txt
+    # First build the React app, then install Python requirements
+    buildCommand: cd frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt
     startCommand: cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT
     envVars:
       # Database: Leave empty to use SQLite (demo mode)
@@ -32,25 +33,3 @@ services:
       # CORS: Allow all origins in demo, restrict in production
       - key: CORS_ORIGINS
         value: "*"
-      
-      # Frontend URL (auto-detected)
-      - key: FRONTEND_URL
-        fromService:
-          name: gproa-edge-frontend
-          type: web
-          property: host
-
-  # === FRONTEND SERVICE (React) ===
-  - type: web
-    name: gproa-edge-frontend
-    env: node
-    region: oregon
-    buildCommand: cd frontend && npm install && npm run build
-    startCommand: npx serve -s build -l $PORT
-    envVars:
-      # Backend URL (auto-injected by Render)
-      - key: REACT_APP_BACKEND_URL
-        fromService:
-          name: gproa-edge-backend
-          type: web
-          property: host
