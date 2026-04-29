@@ -2,7 +2,6 @@ from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import json
@@ -13,7 +12,6 @@ from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-from openai import AsyncOpenAI
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
@@ -24,13 +22,38 @@ from pdf_generator import generate_edge_report
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# ── DATABASE: SQLite (default) or MongoDB if MONGO_URL provided ─────
+MONGO_URL = os.getenv('MONGO_URL')
+DB_NAME = os.getenv('DB_NAME', 'gproa_edge')
 
-# OpenAI client (uses OPENAI_API_KEY or EMERGENT_LLM_KEY as fallback)
-openai_api_key = os.environ.get('OPENAI_API_KEY') or os.environ.get('EMERGENT_LLM_KEY', '')
-openai_client = AsyncOpenAI(api_key=openai_api_key)
+if MONGO_URL:
+    # MongoDB mode (requires MONGO_URL)
+    from motor.motor_asyncio import AsyncIOMotorClient
+    client = AsyncIOMotorClient(MONGO_URL)
+    db = client[DB_NAME]
+    logger = logging.getLogger(__name__)
+    logger.info("Using MongoDB database")
+else:
+    # SQLite mode (default for demo)
+    import aiosqlite
+    db = None  # Not used in SQLite mode
+    DATA_DIR = ROOT_DIR / "data"
+    DATA_DIR.mkdir(exist_ok=True)
+    DB_PATH = DATA_DIR / f"{DB_NAME}.db"
+    logger = logging.getLogger(__name__)
+    logger.info(f"Using SQLite database at {DB_PATH}")
+
+# ── OPENAI: real client or mock/demo mode ─────────────────────────────
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') or os.getenv('EMERGENT_LLM_KEY')
+DEMO_MODE = os.getenv('DEMO_MODE', 'false').lower() == 'true'
+
+if OPENAI_API_KEY and not DEMO_MODE:
+    from openai import AsyncOpenAI
+    openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    logger.info("Using OpenAI API")
+else:
+    openai_client = None
+    logger.info("Demo mode: using mock AI responses")
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -41,7 +64,506 @@ logger = logging.getLogger(__name__)
 # In-memory job tracker for batch progress
 processing_jobs = {}
 
-# --- Pydantic Models ---
+class UnifiedDB:
+    """Wrapper that provides same interface for MongoDB and SQLite."""
+
+    def __init__(self):
+        self.mode = "mongodb" if MONGO_URL else "sqlite"
+        self.conn = None  # Lazy-init on first use
+
+    async def _ensure_sqlite(self):
+        """Initialize SQLite connection and schema on first use."""
+        if self.conn is None:
+            print(">>> Initializing SQLite connection...")
+            self.conn = await aiosqlite.connect(DB_PATH)
+            self.conn.row_factory = aiosqlite.Row
+            await self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS projects (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    typology TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    file_count INTEGER DEFAULT 0,
+                    processed_count INTEGER DEFAULT 0
+                )
+            """)
+            await self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS files (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    file_size INTEGER NOT NULL,
+                    content_text TEXT,
+                    status TEXT DEFAULT 'pending',
+                    category_edge TEXT,
+                    measure_edge TEXT,
+                    doc_type TEXT,
+                    confidence REAL,
+                    watts REAL,
+                    lumens REAL,
+                    tipo_equipo TEXT,
+                    marca TEXT,
+                    modelo TEXT,
+                    areas TEXT,
+                    specialized_data TEXT,
+                    uploaded_at TEXT NOT NULL
+                )
+            """)
+            await self.conn.execute("CREATE INDEX IF NOT EXISTS idx_files_project ON files(project_id)")
+            await self.conn.execute("CREATE INDEX IF NOT EXISTS idx_files_status ON files(status)")
+            await self.conn.commit()
+            print(">>> SQLite database ready")
+
+    async def projects_insert_one(self, doc: dict):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            await db.projects.insert_one(doc)
+        else:
+            await self.conn.execute("""
+                INSERT INTO projects (id, name, typology, created_at, file_count, processed_count)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                doc["id"], doc["name"], doc["typology"], doc["created_at"],
+                doc.get("file_count", 0), doc.get("processed_count", 0)
+            ))
+            await self.conn.commit()
+
+    async def projects_find_one(self, query: dict, projection: dict = None):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            proj = {k: 1 for k in projection.keys()} if projection else None
+            return await db.projects.find_one(query, proj)
+        else:
+            columns = ["id", "name", "typology", "created_at", "file_count", "processed_count"]
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"SELECT {', '.join(columns)} FROM projects WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def projects_find(self, query: dict = None, projection: dict = None):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            proj = {k: 1 for k in projection.keys()} if projection else None
+            cursor = db.projects.find(query or {}, proj or {})
+            return await cursor.to_list(100)
+        else:
+            columns = ["id", "name", "typology", "created_at", "file_count", "processed_count"]
+            sql = f"SELECT {', '.join(columns)} FROM projects"
+            params = []
+            if query:
+                where = [f"{k}=?" for k in query.keys()]
+                params = list(query.values())
+                sql += " WHERE " + " AND ".join(where)
+            async with self.conn.execute(sql, params) as cur:
+                rows = await cur.fetchall()
+                return [dict(r) for r in rows]
+
+    async def projects_delete_one(self, query: dict):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            return await db.projects.delete_one(query)
+        else:
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"DELETE FROM projects WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                await self.conn.commit()
+                return type('Result', (), {'deleted_count': cur.rowcount})()
+
+    async def files_insert_one(self, doc: dict):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            await db.files.insert_one(doc)
+        else:
+            areas = json.dumps(doc.get("areas")) if doc.get("areas") else None
+            specialized = json.dumps(doc.get("specialized_data")) if doc.get("specialized_data") else None
+            await self.conn.execute("""
+                INSERT INTO files (
+                    id, project_id, filename, file_size, content_text, status,
+                    category_edge, measure_edge, doc_type, confidence,
+                    watts, lumens, tipo_equipo, marca, modelo,
+                    areas, specialized_data, uploaded_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                doc["id"], doc["project_id"], doc["filename"], doc["file_size"],
+                doc.get("content_text"), doc.get("status", "pending"),
+                doc.get("category_edge"), doc.get("measure_edge"), doc.get("doc_type"),
+                doc.get("confidence"),
+                doc.get("watts"), doc.get("lumens"), doc.get("tipo_equipo"),
+                doc.get("marca"), doc.get("modelo"),
+                areas, specialized, doc.get("uploaded_at")
+            ))
+            await self.conn.commit()
+
+    async def files_find_one(self, query: dict, projection: dict = None):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            proj = {k: 1 for k in projection.keys()} if projection else None
+            return await db.files.find_one(query, proj)
+        else:
+            columns = ["id", "project_id", "filename", "file_size", "content_text", "status",
+                       "category_edge", "measure_edge", "doc_type", "confidence",
+                       "watts", "lumens", "tipo_equipo", "marca", "modelo",
+                       "areas", "specialized_data", "uploaded_at"]
+            if projection and "content_text" in projection and projection["content_text"] == 0:
+                columns = [c for c in columns if c != "content_text"]
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"SELECT {', '.join(columns)} FROM files WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                row = await cur.fetchone()
+                if row:
+                    return self._deserialize_file_row(dict(row))
+            return None
+
+    async def files_find(self, query: dict = None, projection: dict = None):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            proj = {k: 1 for k in projection.keys()} if projection else None
+            cursor = db.files.find(query or {}, proj or {})
+            return await cursor.to_list(500)
+        else:
+            columns = ["id", "project_id", "filename", "file_size", "status",
+                       "category_edge", "measure_edge", "doc_type", "confidence",
+                       "watts", "lumens", "tipo_equipo", "marca", "modelo",
+                       "areas", "specialized_data", "uploaded_at"]
+            if projection and "content_text" in projection and projection["content_text"] == 0:
+                columns = [c for c in columns if c != "content_text"]
+            sql = f"SELECT {', '.join(columns)} FROM files"
+            params = []
+            if query:
+                where = [f"{k}=?" for k in query.keys()]
+                params = list(query.values())
+                sql += " WHERE " + " AND ".join(where)
+            async with self.conn.execute(sql, params) as cur:
+                rows = await cur.fetchall()
+                return [self._deserialize_file_row(dict(r)) for r in rows]
+
+    def _deserialize_file_row(self, row: dict) -> dict:
+        if "areas" in row and row["areas"]:
+            try:
+                row["areas"] = json.loads(row["areas"])
+            except:
+                row["areas"] = None
+        if "specialized_data" in row and row["specialized_data"]:
+            try:
+                row["specialized_data"] = json.loads(row["specialized_data"])
+            except:
+                row["specialized_data"] = None
+        return row
+
+    async def files_update_one(self, query: dict, update: dict):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            await db.files.update_one(query, update)
+        else:
+            set_dict = update.get("$set", {})
+            if "areas" in set_dict and isinstance(set_dict["areas"], list):
+                set_dict["areas"] = json.dumps(set_dict["areas"])
+            if "specialized_data" in set_dict and isinstance(set_dict["specialized_data"], dict):
+                set_dict["specialized_data"] = json.dumps(set_dict["specialized_data"])
+            set_clause = ", ".join([f"{k}=?" for k in set_dict.keys()])
+            params = list(set_dict.values())
+            where = [f"{k}=?" for k in query.keys()]
+            params.extend(list(query.values()))
+            sql = f"UPDATE files SET {set_clause} WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                await self.conn.commit()
+
+    async def files_delete_one(self, query: dict):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            return await db.files.delete_one(query)
+        else:
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"DELETE FROM files WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                await self.conn.commit()
+                return type('Result', (), {'deleted_count': cur.rowcount})()
+
+    async def files_delete_many(self, query: dict):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            await db.files.delete_many(query)
+        else:
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"DELETE FROM files WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params):
+                await self.conn.commit()
+
+    async def files_count_documents(self, query: dict):
+        if self.mode == "sqlite":
+            await self._ensure_sqlite()
+        if self.mode == "mongodb":
+            return await db.files.count_documents(query)
+        else:
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"SELECT COUNT(*) as cnt FROM files WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                row = await cur.fetchone()
+                return row["cnt"] if row else 0
+
+# Initialize unified DB
+udb = UnifiedDB()
+
+class UnifiedDB:
+    """Wrapper that provides same interface for MongoDB and SQLite."""
+
+    def __init__(self):
+        self.mode = "mongodb" if MONGO_URL else "sqlite"
+        self.conn = None  # Lazy-init on first use
+
+    async def _ensure_sqlite(self):
+        """Initialize SQLite connection and schema on first use."""
+        if self.conn is None:
+            print(">>> Initializing SQLite connection...")
+            self.conn = await aiosqlite.connect(DB_PATH)
+            self.conn.row_factory = aiosqlite.Row
+            # Create tables
+            await self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS projects (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    typology TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    file_count INTEGER DEFAULT 0,
+                    processed_count INTEGER DEFAULT 0
+                )
+            """)
+            await self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS files (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    file_size INTEGER NOT NULL,
+                    content_text TEXT,
+                    status TEXT DEFAULT 'pending',
+                    category_edge TEXT,
+                    measure_edge TEXT,
+                    doc_type TEXT,
+                    confidence REAL,
+                    watts REAL,
+                    lumens REAL,
+                    tipo_equipo TEXT,
+                    marca TEXT,
+                    modelo TEXT,
+                    areas TEXT,
+                    specialized_data TEXT,
+                    uploaded_at TEXT NOT NULL
+                )
+            """)
+            await self.conn.execute("CREATE INDEX IF NOT EXISTS idx_files_project ON files(project_id)")
+            await self.conn.execute("CREATE INDEX IF NOT EXISTS idx_files_status ON files(status)")
+            await self.conn.commit()
+            print(">>> SQLite database ready")
+
+    async def projects_insert_one(self, doc: dict):
+        if self.mode == "mongodb":
+            await db.projects.insert_one(doc)
+        else:
+            await self._ensure_sqlite()
+            await self.conn.execute("""
+                INSERT INTO projects (id, name, typology, created_at, file_count, processed_count)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                doc["id"], doc["name"], doc["typology"], doc["created_at"],
+                doc.get("file_count", 0), doc.get("processed_count", 0)
+            ))
+            await self.conn.commit()
+
+    async def projects_find_one(self, query: dict, projection: dict = None):
+        if self.mode == "mongodb":
+            proj = {k: 1 for k in projection.keys()} if projection else None
+            return await db.projects.find_one(query, proj)
+        else:
+            await self._ensure_sqlite()
+            columns = ["id", "name", "typology", "created_at", "file_count", "processed_count"]
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"SELECT {', '.join(columns)} FROM projects WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def projects_find(self, query: dict = None, projection: dict = None):
+        if self.mode == "mongodb":
+            proj = {k: 1 for k in projection.keys()} if projection else None
+            cursor = db.projects.find(query or {}, proj or {})
+            return await cursor.to_list(100)
+        else:
+            await self._ensure_sqlite()
+            columns = ["id", "name", "typology", "created_at", "file_count", "processed_count"]
+            sql = f"SELECT {', '.join(columns)} FROM projects"
+            params = []
+            if query:
+                where = [f"{k}=?" for k in query.keys()]
+                params = list(query.values())
+                sql += " WHERE " + " AND ".join(where)
+            async with self.conn.execute(sql, params) as cur:
+                rows = await cur.fetchall()
+                return [dict(r) for r in rows]
+
+    async def projects_delete_one(self, query: dict):
+        if self.mode == "mongodb":
+            return await db.projects.delete_one(query)
+        else:
+            await self._ensure_sqlite()
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"DELETE FROM projects WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                await self.conn.commit()
+                return type('Result', (), {'deleted_count': cur.rowcount})()
+
+    async def files_insert_one(self, doc: dict):
+        if self.mode == "mongodb":
+            await db.files.insert_one(doc)
+        else:
+            await self._ensure_sqlite()
+            areas = json.dumps(doc.get("areas")) if doc.get("areas") else None
+            specialized = json.dumps(doc.get("specialized_data")) if doc.get("specialized_data") else None
+            await self.conn.execute("""
+                INSERT INTO files (
+                    id, project_id, filename, file_size, content_text, status,
+                    category_edge, measure_edge, doc_type, confidence,
+                    watts, lumens, tipo_equipo, marca, modelo,
+                    areas, specialized_data, uploaded_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                doc["id"], doc["project_id"], doc["filename"], doc["file_size"],
+                doc.get("content_text"), doc.get("status", "pending"),
+                doc.get("category_edge"), doc.get("measure_edge"), doc.get("doc_type"),
+                doc.get("confidence"),
+                doc.get("watts"), doc.get("lumens"), doc.get("tipo_equipo"),
+                doc.get("marca"), doc.get("modelo"),
+                areas, specialized, doc.get("uploaded_at")
+            ))
+            await self.conn.commit()
+
+    async def files_find_one(self, query: dict, projection: dict = None):
+        if self.mode == "mongodb":
+            proj = {k: 1 for k in projection.keys()} if projection else None
+            return await db.files.find_one(query, proj)
+        else:
+            await self._ensure_sqlite()
+            columns = ["id", "project_id", "filename", "file_size", "content_text", "status",
+                       "category_edge", "measure_edge", "doc_type", "confidence",
+                       "watts", "lumens", "tipo_equipo", "marca", "modelo",
+                       "areas", "specialized_data", "uploaded_at"]
+            if projection and "content_text" in projection and projection["content_text"] == 0:
+                columns = [c for c in columns if c != "content_text"]
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"SELECT {', '.join(columns)} FROM files WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                row = await cur.fetchone()
+                if row:
+                    return self._deserialize_file_row(dict(row))
+            return None
+
+    async def files_find(self, query: dict = None, projection: dict = None):
+        if self.mode == "mongodb":
+            proj = {k: 1 for k in projection.keys()} if projection else None
+            cursor = db.files.find(query or {}, proj or {})
+            return await cursor.to_list(500)
+        else:
+            await self._ensure_sqlite()
+            columns = ["id", "project_id", "filename", "file_size", "status",
+                       "category_edge", "measure_edge", "doc_type", "confidence",
+                       "watts", "lumens", "tipo_equipo", "marca", "modelo",
+                       "areas", "specialized_data", "uploaded_at"]
+            if projection and "content_text" in projection and projection["content_text"] == 0:
+                columns = [c for c in columns if c != "content_text"]
+            sql = f"SELECT {', '.join(columns)} FROM files"
+            params = []
+            if query:
+                where = [f"{k}=?" for k in query.keys()]
+                params = list(query.values())
+                sql += " WHERE " + " AND ".join(where)
+            async with self.conn.execute(sql, params) as cur:
+                rows = await cur.fetchall()
+                return [self._deserialize_file_row(dict(r)) for r in rows]
+
+    def _deserialize_file_row(self, row: dict) -> dict:
+        if "areas" in row and row["areas"]:
+            try:
+                row["areas"] = json.loads(row["areas"])
+            except:
+                row["areas"] = None
+        if "specialized_data" in row and row["specialized_data"]:
+            try:
+                row["specialized_data"] = json.loads(row["specialized_data"])
+            except:
+                row["specialized_data"] = None
+        return row
+
+    async def files_update_one(self, query: dict, update: dict):
+        if self.mode == "mongodb":
+            await db.files.update_one(query, update)
+        else:
+            await self._ensure_sqlite()
+            set_dict = update.get("$set", {})
+            if "areas" in set_dict and isinstance(set_dict["areas"], list):
+                set_dict["areas"] = json.dumps(set_dict["areas"])
+            if "specialized_data" in set_dict and isinstance(set_dict["specialized_data"], dict):
+                set_dict["specialized_data"] = json.dumps(set_dict["specialized_data"])
+            set_clause = ", ".join([f"{k}=?" for k in set_dict.keys()])
+            params = list(set_dict.values())
+            where = [f"{k}=?" for k in query.keys()]
+            params.extend(list(query.values()))
+            sql = f"UPDATE files SET {set_clause} WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                await self.conn.commit()
+
+    async def files_delete_one(self, query: dict):
+        if self.mode == "mongodb":
+            return await db.files.delete_one(query)
+        else:
+            await self._ensure_sqlite()
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"DELETE FROM files WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                await self.conn.commit()
+                return type('Result', (), {'deleted_count': cur.rowcount})()
+
+    async def files_delete_many(self, query: dict):
+        if self.mode == "mongodb":
+            await db.files.delete_many(query)
+        else:
+            await self._ensure_sqlite()
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"DELETE FROM files WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params):
+                await self.conn.commit()
+
+    async def files_count_documents(self, query: dict):
+        if self.mode == "mongodb":
+            return await db.files.count_documents(query)
+        else:
+            await self._ensure_sqlite()
+            where = [f"{k}=?" for k in query.keys()]
+            params = list(query.values())
+            sql = f"SELECT COUNT(*) as cnt FROM files WHERE {' AND '.join(where)}"
+            async with self.conn.execute(sql, params) as cur:
+                row = await cur.fetchone()
+                return row["cnt"] if row else 0
 
 class ProjectCreate(BaseModel):
     name: str
@@ -76,10 +598,81 @@ class FileResponse(BaseModel):
     specialized_data: Optional[dict] = None
     uploaded_at: str
 
-# --- AI Processing Functions ---
+# ── MOCK AI FUNCTIONS (Demo Mode) ───────────────────────────────────────
+
+def classify_file_mock(content: str) -> dict:
+    """Return deterministic mock classification based on filename/content patterns."""
+    # Simple heuristic to make demo feel responsive
+    content_lower = content.lower()
+    if "lumin" in content_lower or "led" in content_lower or "lm" in content_lower:
+        return {"category_edge": "ENERGY", "measure_edge": "EEM22", "doc_type": "ficha_tecnica", "confidence": 0.95}
+    elif "hvac" in content_lower or "aire" in content_lower or " Split " in content or "VRF" in content:
+        return {"category_edge": "ENERGY", "measure_edge": "EEM09", "doc_type": "ficha_tecnica", "confidence": 0.92}
+    elif "plano" in content_lower or "floor" in content_lower or "architectural" in content_lower:
+        return {"category_edge": "DESIGN", "measure_edge": "DESIGN", "doc_type": "plano", "confidence": 0.88}
+    elif "griferia" in content_lower or "ducha" in content_lower or "inodoro" in content_lower or "sanitario" in content_lower:
+        return {"category_edge": "WATER", "measure_edge": "WEM01", "doc_type": "ficha_tecnica", "confidence": 0.90}
+    else:
+        return {"category_edge": "MATERIALS", "measure_edge": "MRU01", "doc_type": "otro", "confidence": 0.75}
+
+def extract_data_mock(content: str) -> dict:
+    """Extract mock technical data from content."""
+    content_lower = content.lower()
+    watts = None
+    lumens = None
+    tipo_equipo = None
+    marca = None
+    modelo = None
+
+    # Try to extract numbers using simple patterns
+    import re
+    watt_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:w|watts?|watt)', content_lower)
+    if watt_match:
+        watts = float(watt_match.group(1))
+
+    lumen_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:lm|lumens?|lumen)', content_lower)
+    if lumen_match:
+        lumens = float(lumen_match.group(1))
+
+    if "luminaria" in content_lower or "lampara" in content_lower or "led" in content_lower:
+        tipo_equipo = "luminaria LED"
+    elif "aire" in content_lower or "acondicionado" in content_lower or "split" in content_lower:
+        tipo_equipo = "aire acondicionado"
+    elif "grifo" in content_lower or "ducha" in content_lower:
+        tipo_equipo = "griferia/ducha"
+
+    # Common brands
+    for brand in ["philips", "osram", "ge", "toshiba", "daikin", "carrier", "劲力"]:
+        if brand in content_lower:
+            marca = brand.capitalize()
+            break
+
+    return {
+        "watts": watts,
+        "lumens": lumens,
+        "tipo_equipo": tipo_equipo,
+        "marca": marca,
+        "modelo": modelo
+    }
+
+def calculate_areas_mock(content: str) -> list:
+    """Return mock area calculations for floor plans."""
+    # Return some plausible demo areas
+    return [
+        {"nombre": "Oficina A", "area_m2": 45.5},
+        {"nombre": "Sala de Reuniones", "area_m2": 22.0},
+        {"nombre": "Pasillo", "area_m2": 12.3},
+        {"nombre": "Baño", "area_m2": 6.5},
+        {"nombre": "Cocina", "area_m2": 10.0},
+    ]
+
+# ── AI Processing Functions ─────────────────────────────────────────────
 
 async def classify_file(content: str) -> dict:
-    """Classify file using OpenAI GPT-4o."""
+    """Classify file using OpenAI GPT-4o or mock."""
+    if not openai_client:
+        return classify_file_mock(content)
+
     measures_list = ", ".join(EDGE_WBS.keys())
     prompt = f"""Clasifica este archivo tecnico de construccion.
 
@@ -107,19 +700,21 @@ Contenido del archivo:
             max_tokens=500
         )
         result_text = response.choices[0].message.content.strip()
-        
-        # Clean markdown code blocks if present
+
         if result_text.startswith("```"):
             result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        
+
         return json.loads(result_text)
     except (json.JSONDecodeError, Exception) as e:
         logger.error(f"Failed to parse classification response: {e}")
-        return {"category_edge": "DESIGN", "measure_edge": "DESIGN", "doc_type": "otro", "confidence": 0.1}
+        return classify_file_mock(content)
 
 
 async def extract_data(content: str) -> dict:
-    """Extract technical data using OpenAI GPT-4o."""
+    """Extract technical data using OpenAI GPT-4o or mock."""
+    if not openai_client:
+        return extract_data_mock(content)
+
     prompt = f"""Extrae la siguiente informacion si esta disponible:
 - watts (numero)
 - lumens (numero)
@@ -146,18 +741,21 @@ Contenido:
             max_tokens=500
         )
         result_text = response.choices[0].message.content.strip()
-        
+
         if result_text.startswith("```"):
             result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        
+
         return json.loads(result_text)
     except (json.JSONDecodeError, Exception) as e:
         logger.error(f"Failed to parse extraction response: {e}")
-        return {"watts": None, "lumens": None, "tipo_equipo": None, "marca": None, "modelo": None}
+        return extract_data_mock(content)
 
 
 async def calculate_areas(content: str) -> list:
-    """Calculate areas from floor plan text using OpenAI GPT-4o."""
+    """Calculate areas from floor plan text using OpenAI GPT-4o or mock."""
+    if not openai_client:
+        return calculate_areas_mock(content)
+
     prompt = f"""A partir del siguiente texto extraido de un plano (OCR), identifica espacios y sus dimensiones.
 Calcula el area de cada espacio en m2.
 
@@ -180,15 +778,15 @@ Texto del plano:
             max_tokens=1000
         )
         result_text = response.choices[0].message.content.strip()
-        
+
         if result_text.startswith("```"):
             result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        
+
         data = json.loads(result_text)
         return data.get("espacios", [])
     except (json.JSONDecodeError, Exception) as e:
         logger.error(f"Failed to parse areas response: {e}")
-        return []
+        return calculate_areas_mock(content)
 
 
 async def process_single_file_pipeline(file_doc: dict, job_id: str = None) -> dict:
@@ -218,7 +816,9 @@ async def process_single_file_pipeline(file_doc: dict, job_id: str = None) -> di
         update["modelo"] = extraction.get("modelo")
 
         # Step 3: Specialized processor based on measure
-        specialized = await run_specialized_processor(measure, content, EMERGENT_LLM_KEY)
+        # Pass API key only if available and not demo mode
+        api_key = OPENAI_API_KEY if openai_client else None
+        specialized = await run_specialized_processor(measure, content, api_key)
         if specialized:
             update["specialized_data"] = specialized
 
@@ -228,12 +828,12 @@ async def process_single_file_pipeline(file_doc: dict, job_id: str = None) -> di
             update["areas"] = areas
 
         update["status"] = "processed"
-        await db.files.update_one({"id": file_id}, {"$set": update})
+        await udb.files_update_one({"id": file_id}, {"$set": update})
         return {"file_id": file_id, "filename": file_doc["filename"], "status": "processed", "measure": measure}
 
     except Exception as e:
         logger.error(f"Error processing file {file_doc['filename']}: {e}")
-        await db.files.update_one({"id": file_id}, {"$set": {"status": "error"}})
+        await udb.files_update_one({"id": file_id}, {"$set": {"status": "error"}})
         return {"file_id": file_id, "filename": file_doc["filename"], "status": "error", "error": str(e)}
 
 
@@ -268,33 +868,38 @@ async def create_project(project: ProjectCreate):
         "file_count": 0,
         "processed_count": 0,
     }
-    await db.projects.insert_one(doc)
-    doc.pop("_id", None)
+    await udb.projects_insert_one(doc)
     return ProjectResponse(**doc)
 
 @api_router.get("/projects", response_model=List[ProjectResponse])
 async def list_projects():
-    projects = await db.projects.find({}, {"_id": 0}).to_list(100)
+    projects = await udb.projects_find()
+    result = []
     for p in projects:
-        p["file_count"] = await db.files.count_documents({"project_id": p["id"]})
-        p["processed_count"] = await db.files.count_documents({"project_id": p["id"], "status": "processed"})
-    return [ProjectResponse(**p) for p in projects]
+        file_count = await udb.files_count_documents({"project_id": p["id"]})
+        processed_count = await udb.files_count_documents({"project_id": p["id"], "status": "processed"})
+        p["file_count"] = file_count
+        p["processed_count"] = processed_count
+        result.append(ProjectResponse(**p))
+    return result
 
 @api_router.get("/projects/{project_id}", response_model=ProjectResponse)
 async def get_project(project_id: str):
-    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    project = await udb.projects_find_one({"id": project_id})
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    project["file_count"] = await db.files.count_documents({"project_id": project_id})
-    project["processed_count"] = await db.files.count_documents({"project_id": project_id, "status": "processed"})
+    file_count = await udb.files_count_documents({"project_id": project_id})
+    processed_count = await udb.files_count_documents({"project_id": project_id, "status": "processed"})
+    project["file_count"] = file_count
+    project["processed_count"] = processed_count
     return ProjectResponse(**project)
 
 @api_router.delete("/projects/{project_id}")
 async def delete_project(project_id: str):
-    result = await db.projects.delete_one({"id": project_id})
+    result = await udb.projects_delete_one({"id": project_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    await db.files.delete_many({"project_id": project_id})
+    await udb.files_delete_many({"project_id": project_id})
     # Cleanup jobs
     to_remove = [k for k, v in processing_jobs.items() if v.get("project_id") == project_id]
     for k in to_remove:
@@ -305,21 +910,21 @@ async def delete_project(project_id: str):
 
 @api_router.post("/projects/{project_id}/files", response_model=FileResponse)
 async def upload_file(project_id: str, file: UploadFile = File(...)):
-    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    project = await udb.projects_find_one({"id": project_id})
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
-    content = await file.read()
+    content_bytes = await file.read()
     try:
-        text_content = content.decode("utf-8")
+        text_content = content_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        text_content = content.decode("latin-1", errors="ignore")
+        text_content = content_bytes.decode("latin-1", errors="ignore")
 
     doc = {
         "id": str(uuid.uuid4()),
         "project_id": project_id,
         "filename": file.filename,
-        "file_size": len(content),
+        "file_size": len(content_bytes),
         "content_text": text_content,
         "status": "pending",
         "category_edge": None,
@@ -335,22 +940,19 @@ async def upload_file(project_id: str, file: UploadFile = File(...)):
         "specialized_data": None,
         "uploaded_at": datetime.now(timezone.utc).isoformat(),
     }
-    await db.files.insert_one(doc)
-    doc.pop("_id", None)
+    await udb.files_insert_one(doc)
+    # Return without content_text
     doc.pop("content_text", None)
     return FileResponse(**doc)
 
 @api_router.get("/projects/{project_id}/files", response_model=List[FileResponse])
 async def list_files(project_id: str):
-    files = await db.files.find(
-        {"project_id": project_id},
-        {"_id": 0, "content_text": 0}
-    ).to_list(500)
+    files = await udb.files_find({"project_id": project_id}, {"content_text": 0})
     return [FileResponse(**f) for f in files]
 
 @api_router.delete("/files/{file_id}")
 async def delete_file(file_id: str):
-    result = await db.files.delete_one({"id": file_id})
+    result = await udb.files_delete_one({"id": file_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
     return {"message": "Archivo eliminado"}
@@ -360,15 +962,12 @@ async def delete_file(file_id: str):
 @api_router.post("/projects/{project_id}/process-edge")
 async def process_edge_project(project_id: str):
     """Full EDGE automation: classify + extract + specialized analysis + validate."""
-    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    project = await udb.projects_find_one({"id": project_id})
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
     # Get ALL files (pending + already processed to reprocess)
-    files = await db.files.find(
-        {"project_id": project_id},
-        {"_id": 0}
-    ).to_list(500)
+    files = await udb.files_find({"project_id": project_id})
 
     if not files:
         raise HTTPException(status_code=400, detail="No hay archivos en el proyecto")
@@ -435,10 +1034,7 @@ async def get_process_status(project_id: str, job_id: str):
 # Legacy simple process (backward compat)
 @api_router.post("/projects/{project_id}/process")
 async def process_project_files(project_id: str):
-    files = await db.files.find(
-        {"project_id": project_id, "status": "pending"},
-        {"_id": 0}
-    ).to_list(500)
+    files = await udb.files_find({"project_id": project_id, "status": "pending"})
 
     if not files:
         raise HTTPException(status_code=400, detail="No hay archivos pendientes de procesar")
@@ -452,7 +1048,7 @@ async def process_project_files(project_id: str):
 
 @api_router.post("/files/{file_id}/process")
 async def process_single_file(file_id: str):
-    f = await db.files.find_one({"id": file_id}, {"_id": 0})
+    f = await udb.files_find_one({"id": file_id})
     if not f:
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
     result = await process_single_file_pipeline(f)
@@ -463,10 +1059,10 @@ async def process_single_file(file_id: str):
 @api_router.get("/projects/{project_id}/wbs-validation")
 async def get_wbs_validation(project_id: str):
     """Deterministic WBS validation against EDGE rules."""
-    files = await db.files.find(
+    files = await udb.files_find(
         {"project_id": project_id, "status": "processed"},
-        {"_id": 0, "content_text": 0}
-    ).to_list(500)
+        {"content_text": 0}
+    )
 
     validation = validate_project_wbs(files)
     coverage = get_project_coverage(files)
@@ -474,7 +1070,7 @@ async def get_wbs_validation(project_id: str):
     return {
         "measures": validation,
         "coverage": coverage,
-        "total_files": await db.files.count_documents({"project_id": project_id}),
+        "total_files": await udb.files_count_documents({"project_id": project_id}),
         "processed_files": len(files),
     }
 
@@ -483,10 +1079,10 @@ async def get_wbs_validation(project_id: str):
 @api_router.get("/projects/{project_id}/kpis")
 async def get_project_kpis(project_id: str):
     """Get KPIs per measure for the project."""
-    files = await db.files.find(
+    files = await udb.files_find(
         {"project_id": project_id, "status": "processed"},
-        {"_id": 0, "content_text": 0}
-    ).to_list(500)
+        {"content_text": 0}
+    )
 
     kpis = {}
 
@@ -556,20 +1152,20 @@ async def get_project_kpis(project_id: str):
 
 @api_router.get("/projects/{project_id}/extracted-data")
 async def get_extracted_data(project_id: str):
-    files = await db.files.find(
+    files = await udb.files_find(
         {"project_id": project_id, "status": "processed"},
-        {"_id": 0, "content_text": 0}
-    ).to_list(500)
+        {"content_text": 0}
+    )
     return files
 
 # ═══════ EDGE Status (enhanced) ═══════
 
 @api_router.get("/projects/{project_id}/edge-status")
 async def get_edge_status(project_id: str):
-    files = await db.files.find(
+    files = await udb.files_find(
         {"project_id": project_id, "status": "processed"},
-        {"_id": 0, "content_text": 0}
-    ).to_list(500)
+        {"content_text": 0}
+    )
 
     categories = {}
     measures = {}
@@ -587,8 +1183,8 @@ async def get_edge_status(project_id: str):
         if v["estado"] == "incompleto"
     ]
 
-    total = await db.files.count_documents({"project_id": project_id})
-    processed = await db.files.count_documents({"project_id": project_id, "status": "processed"})
+    total = await udb.files_count_documents({"project_id": project_id})
+    processed = await udb.files_count_documents({"project_id": project_id, "status": "processed"})
 
     return {
         "categories": categories,
@@ -603,14 +1199,11 @@ async def get_edge_status(project_id: str):
 
 @api_router.get("/projects/{project_id}/export-excel")
 async def export_excel(project_id: str):
-    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    project = await udb.projects_find_one({"id": project_id})
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
-    files = await db.files.find(
-        {"project_id": project_id},
-        {"_id": 0, "content_text": 0}
-    ).to_list(500)
+    files = await udb.files_find({"project_id": project_id}, {"content_text": 0})
 
     wb = openpyxl.Workbook()
     header_font = Font(bold=True, color="FFFFFF", size=10)
@@ -735,14 +1328,11 @@ async def export_excel(project_id: str):
 @api_router.get("/projects/{project_id}/export-pdf")
 async def export_pdf(project_id: str):
     """Generate professional EDGE certification PDF report."""
-    project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+    project = await udb.projects_find_one({"id": project_id})
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
-    files = await db.files.find(
-        {"project_id": project_id},
-        {"_id": 0, "content_text": 0}
-    ).to_list(500)
+    files = await udb.files_find({"project_id": project_id}, {"content_text": 0})
 
     processed_files = [f for f in files if f.get("status") == "processed"]
 
@@ -825,5 +1415,10 @@ app.add_middleware(
 )
 
 @app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+async def shutdown_db():
+    if MONGO_URL:
+        client.close()
+        logger.info("MongoDB connection closed")
+    elif udb.conn:
+        await udb.conn.close()
+        logger.info("SQLite connection closed")
