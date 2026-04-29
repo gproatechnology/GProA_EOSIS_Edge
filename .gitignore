@@ -35,6 +35,7 @@ __pycache__/
 *pyc*
 venv/
 .venv/
+backend/data/
 
 # Environment files (keep .env.example)
 .env
