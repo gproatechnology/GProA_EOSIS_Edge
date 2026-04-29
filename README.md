@@ -74,75 +74,148 @@ flowchart TD
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.10+ (recommended: Python 3.12 for best aiosqlite compatibility)
-- Node 18+, Yarn (for frontend)
-- MongoDB (optional – only needed for production, not demo)
-- [OpenAI API Key](https://platform.openai.com/api-keys) (optional – only needed for production, not demo)
-
-### 🎯 Demo Mode (Zero Config – Recommended for Testing)
-Run the application **without MongoDB or OpenAI** using SQLite + mock AI responses:
-
-```bash
-# Backend (auto-detects demo mode)
-cd backend
-cp .env.example .env  # Keep defaults: MONGO_URL empty, OPENAI_API_KEY empty
-pip install -r requirements.txt
-uvicorn server:app --reload --port 8000
-# API docs: http://localhost:8000/docs
-
-# Frontend (in another terminal)
-cd frontend
-yarn install
-yarn start
-# App: http://localhost:3000
-```
-
-**What happens in demo mode:**
-- ✅ SQLite database created automatically at `backend/data/gproa_edge.db`
-- ✅ AI classification & extraction uses deterministic mock responses
-- ✅ All features work: upload, process, validate, export (Excel/PDF)
-- ✅ No external API calls – perfect for demos, offline testing, CI/CD
+- **Docker Desktop** (Windows/Mac) or **Docker + Docker Compose** (Linux)
+- **Node 18+** (optional, for frontend dev without Docker)
+- **Python 3.12+** (optional, for backend dev without Docker)
 
 ---
 
-## ☁️ Deployment to Render
+## 🐳 **Option 1: Docker Compose (Recommended – Everything in One Command)**
 
-### 🎯 **Deploy Demo Mode (No API Keys Required)**
-Deploy instantly without configuring MongoDB or OpenAI. Uses SQLite + mock AI.
+La forma más fácil de iniciar todo el stack (backend + frontend) con un solo comando.
+
+### **Desarrollo (Hot-Reload)**
+```bash
+# 1. Clona el repo y checkout a submain
+git clone https://github.com/gproatechnology/GProA_EOSIS_Edge.git
+cd GProA_EOSIS_Edge
+git checkout submain
+
+# 2. (Opcional) Configura variables de entorno
+cp .env.docker .env  # Edita si quieres cambiar defaults
+
+# 3. Inicia todos los servicios
+docker-compose up
+
+# 4. Accede:
+#    Frontend: http://localhost:3000
+#    Backend API: http://localhost:8000
+#    API Docs (Swagger): http://localhost:8000/docs
+```
+
+**Hot-Reload activado:**
+- Cambias código en `backend/` → FastAPI recarga automáticamente
+- Cambias código en `frontend/` → React Fast Refresh recarga en browser
+
+### **Producción (Imágenes Optimizadas)**
+```bash
+# Usa perfil de producción (sin hot-reload, imágenes más pequeñas)
+docker-compose --profile production up -d
+
+# Accede:
+# Frontend: http://localhost:3000  (Nginx)
+# Backend: http://localhost:8000
+```
+
+**Ver logs:**
+```bash
+docker-compose logs -f        # Todos
+docker-compose logs -f backend # Solo backend
+docker-compose logs -f frontend # Solo frontend
+```
+
+**Detener:**
+```bash
+docker-compose down           # Para pero conserva datos
+docker-compose down -v        # Para y ELIMINA volúmenes (¡cuidado!)
+```
+
+**Más comandos:** Ver **[DOCKER_COMPOSE.md](DOCKER_COMPOSE.md)**.
+
+---
+
+## 🎯 **Option 2: Demo Mode (No Docker – Manual Local)**
+
+Run backend and frontend separately without containers. Good for debugging.
+
+### **Backend**
+```bash
+cd backend
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+cp .env.example .env   # Edit if needed (defaults work for demo)
+uvicorn server:app --reload --port 8000
+```
+
+### **Frontend**
+```bash
+cd frontend
+yarn install
+yarn start
+```
+
+App: http://localhost:3000  
+API: http://localhost:8000
+
+---
+
+## 🎯 **Option 3: Render Cloud (No Docker Locally)**
+
+Deploy directly to Render.com from GitHub (no Docker needed locally).
+
+### **Demo Mode (Zero Config)**
+1. Push to `submain` branch (already done)
+2. En Render Dashboard → **New** → **Blueprint**
+3. Select repo `gproatechnology/GProA_EOSIS_Edge`
+4. Branch: **`submain`**
+5. Click **"Apply Blueprint"** → Services auto-created
+6. Espera 5 min → App live at `*.onrender.com`
+
+**No variables needed** – `render.yaml` configures everything automatically.
+
+See **[RENDER_DEPLOY_SUBMAIN.md](RENDER_DEPLOY_SUBMAIN.md)**.
+
+---
+
+## ☁️ **Deployment to Render**
+
+### **🚀 Demo Mode (No API Keys)**
+Deploy to Render **without MongoDB or OpenAI keys**. Uses SQLite + mock AI.
 
 **Steps:**
 1. Go to [Render.com](https://render.com) → **New** → **Blueprint**
 2. Connect repo: `gproatechnology/GProA_EOSIS_Edge`
-3. **Select branch: `submain`** (demo-ready branch)
+3. **Select branch: `submain`**
 4. Apply blueprint → services auto-created
-5. Wait ~5 minutes → your app is live at `*.onrender.com`
+5. Wait → your app is live
 
-**Variables are pre-configured** in `render.yaml`:
-- `MONGO_URL` → empty (SQLite)
-- `OPENAI_API_KEY` → empty (mock AI)
+**Variables auto-configured** in `render.yaml`:
+- `MONGO_URL` → empty (uses SQLite)
+- `OPENAI_API_KEY` → empty (uses mock AI)
 - `DEMO_MODE` → `true`
-- `CORS_ORIGINS` → `*`
+- No manual setup needed.
 
-No manual environment setup needed. See **[RENDER_DEPLOY_SUBMAIN.md](RENDER_DEPLOY_SUBMAIN.md)** for full details.
+Full guide: **[RENDER_DEPLOY_SUBMAIN.md](RENDER_DEPLOY_SUBMAIN.md)**.
 
 ---
 
 ### 🔧 **Advanced: Production Mode (with MongoDB + OpenAI)**
-For real AI processing and persistent cloud database:
 
-**Backend Environment Variables:**
+For real AI processing and cloud database:
+
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `MONGO_URL` | MongoDB Atlas connection string | ✅ Yes |
 | `OPENAI_API_KEY` | OpenAI API key (GPT-4o) | ✅ Yes |
-| `DEMO_MODE` | Set to `false` | No (default) |
+| `DEMO_MODE` | Set to `false` | No |
+| `CORS_ORIGINS` | Allowed origins (e.g., `https://yourdomain.com`) | ✅ Yes |
 
-**Frontend Environment Variables:**
-| Variable | Description |
-|----------|-------------|
-| `REACT_APP_BACKEND_URL` | Backend URL (e.g., `gproa-edge-backend.onrender.com`) |
-
-See **[ENV_SETUP.md](ENV_SETUP.md)** for detailed production configuration.
+Setup guide: **[ENV_SETUP.md](ENV_SETUP.md)**.
 
 ---
 
