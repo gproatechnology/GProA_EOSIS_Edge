@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse as StarletteFileResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -1426,11 +1426,11 @@ if frontend_build_dir.exists():
         try:
             path_to_file = frontend_build_dir / full_path
             if path_to_file.is_file():
-                return FileResponse(str(path_to_file))
+                return StarletteFileResponse(str(path_to_file))
             
             index_file = frontend_build_dir / "index.html"
             if index_file.is_file():
-                return FileResponse(str(index_file))
+                return StarletteFileResponse(str(index_file))
             
             return {"error": "Frontend build/index.html not found. Build may have failed."}, 404
         except Exception as e:
