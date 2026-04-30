@@ -10,7 +10,7 @@ services:
     region: oregon
     # First build the React app, then install Python requirements
     buildCommand: cd frontend && yarn install && CI=false yarn build && cd ../backend && pip install -r requirements.txt
-    startCommand: cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       # Database: Leave empty to use SQLite (demo mode)
       - key: MONGO_URL
