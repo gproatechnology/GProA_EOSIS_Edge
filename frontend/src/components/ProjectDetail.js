@@ -136,12 +136,12 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/")}
-              className="w-8 h-8 flex items-center justify-center rounded-sm border border-slate-200 hover:bg-slate-50 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
               data-testid="back-button"
             >
               <ArrowLeft className="w-4 h-4 text-slate-600" />
             </button>
-            <h1 className="text-2xl tracking-tight font-semibold text-slate-900" style={{ fontFamily: "'Chivo', sans-serif" }}>
+            <h1 className="text-2xl tracking-tight font-bold text-slate-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
               {project.name}
             </h1>
           </div>
@@ -158,7 +158,7 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
             <button
               onClick={handleProcessEdge}
               disabled={processingEdge || files.length === 0}
-              className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-sm text-sm font-medium hover:bg-slate-800 transition-colors duration-200 border-b-2 border-slate-950 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:shadow-glow transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
               data-testid="process-edge-button"
             >
               <Lightning weight="fill" className="w-4 h-4" />
@@ -168,7 +168,7 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="flex items-center gap-1.5 px-3 py-2.5 text-sm text-red-600 border border-red-200 rounded-sm hover:bg-red-50 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 hover:shadow-sm transition-all disabled:opacity-50"
             data-testid="delete-project-button"
           >
             <Trash className="w-4 h-4" />
@@ -209,7 +209,7 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
               onClick={() => setActiveTab(tab.id)}
               className={`px-5 py-3 text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
                 activeTab === tab.id
-                  ? "text-slate-900"
+                  ? "text-indigo-600"
                   : "text-slate-400 hover:text-slate-600"
               }`}
               data-testid={`tab-${tab.id}`}
@@ -217,7 +217,7 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
               {tab.id === "compliance" && <Gauge className="w-3.5 h-3.5" />}
               {tab.label}
               {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
               )}
             </button>
           ))}

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Chivo:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,14 +6,14 @@
 
 body {
   margin: 0;
-  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc;
+  background-color: #f8fafc; /* Slate 50 */
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Chivo', sans-serif;
+  font-family: 'Outfit', sans-serif;
 }
 
 .font-mono {
@@ -38,31 +38,42 @@ h1, h2, h3, h4, h5, h6 {
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
+    /* Premium Light Mode Colors - Slate & Indigo Base */
+    --background: 210 40% 98%;      /* slate-50 */
+    --foreground: 222 47% 11%;      /* slate-900 */
+    
+    --card: 0 0% 100%;              /* white */
     --card-foreground: 222 47% 11%;
+    
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 222 47% 11%;
+    
+    --primary: 238 84% 67%;         /* Indigo 500 (Vibrant) */
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
+    
+    --secondary: 214 32% 91%;       /* slate-200 */
     --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
+    
+    --muted: 214 32% 91%;           /* slate-200 */
+    --muted-foreground: 215 16% 47%;/* slate-500 */
+    
+    --accent: 238 84% 67%;          /* Indigo 500 */
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 84% 60%;       /* Red 500 */
     --destructive-foreground: 210 40% 98%;
-    --border: 214 32% 91%;
+    
+    --border: 214 32% 91%;          /* slate-200 */
     --input: 214 32% 91%;
-    --ring: 222 47% 11%;
-    --radius: 0.25rem;
-    --chart-1: 199 89% 48%;
-    --chart-2: 217 91% 60%;
-    --chart-3: 45 93% 47%;
-    --chart-4: 142 71% 45%;
-    --chart-5: 0 84% 60%;
+    --ring: 238 84% 67%;            /* Indigo 500 */
+    
+    --radius: 0.75rem;              /* rounded-xl as default */
+    
+    --chart-1: 238 84% 67%;         /* Indigo */
+    --chart-2: 199 89% 48%;         /* Light Blue */
+    --chart-3: 280 65% 60%;         /* Purple */
+    --chart-4: 160 84% 39%;         /* Emerald */
+    --chart-5: 45 93% 47%;          /* Yellow/Orange */
   }
 }
 

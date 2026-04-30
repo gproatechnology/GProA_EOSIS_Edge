@@ -72,7 +72,7 @@ export default function EdgeComplianceTab({ projectId }) {
       {/* Coverage overview */}
       <div className="stat-card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-slate-900" style={{ fontFamily: "'Chivo', sans-serif" }}>
+          <h3 className="text-sm font-medium text-slate-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
             Cobertura del Proyecto
           </h3>
           <span className="font-mono text-2xl font-semibold text-slate-900" data-testid="coverage-percent">
@@ -108,7 +108,7 @@ export default function EdgeComplianceTab({ projectId }) {
       {/* KPIs */}
       {kpis && Object.keys(kpis).length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-slate-900 mb-3" style={{ fontFamily: "'Chivo', sans-serif" }}>
+          <h3 className="text-sm font-medium text-slate-900 mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
             KPIs por Medida
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -157,7 +157,7 @@ export default function EdgeComplianceTab({ projectId }) {
 
       {/* WBS Compliance Table */}
       <div>
-        <h3 className="text-sm font-medium text-slate-900 mb-3" style={{ fontFamily: "'Chivo', sans-serif" }}>
+        <h3 className="text-sm font-medium text-slate-900 mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
           Estado por Medida EDGE
         </h3>
         <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
@@ -235,7 +235,7 @@ export default function EdgeComplianceTab({ projectId }) {
       {/* Alerts summary */}
       {sortedMeasures.some(([, d]) => d.estado === "incompleto") && (
         <div className="stat-card border-l-4 border-l-amber-400" data-testid="compliance-alerts">
-          <h3 className="text-sm font-medium text-slate-900 mb-3 flex items-center gap-2" style={{ fontFamily: "'Chivo', sans-serif" }}>
+          <h3 className="text-sm font-medium text-slate-900 mb-3 flex items-center gap-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
             <WarningCircle weight="fill" className="w-4 h-4 text-amber-500" />
             Alertas de Documentacion
           </h3>

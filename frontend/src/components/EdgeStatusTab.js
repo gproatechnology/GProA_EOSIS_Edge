@@ -112,7 +112,7 @@ export default function EdgeStatusTab({ projectId }) {
       {/* Measures breakdown */}
       {Object.keys(status.measures).length > 0 && (
         <div className="stat-card mb-6">
-          <h3 className="text-sm font-medium text-slate-900 mb-4" style={{ fontFamily: "'Chivo', sans-serif" }}>
+          <h3 className="text-sm font-medium text-slate-900 mb-4" style={{ fontFamily: "'Outfit', sans-serif" }}>
             Medidas EDGE Detectadas
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -137,7 +137,7 @@ export default function EdgeStatusTab({ projectId }) {
       {/* Missing documents */}
       {status.faltantes && status.faltantes.length > 0 && (
         <div className="stat-card border-l-4 border-l-amber-400">
-          <h3 className="text-sm font-medium text-slate-900 mb-4 flex items-center gap-2" style={{ fontFamily: "'Chivo', sans-serif" }}>
+          <h3 className="text-sm font-medium text-slate-900 mb-4 flex items-center gap-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
             <WarningCircle weight="fill" className="w-4 h-4 text-amber-500" />
             Documentos Faltantes
           </h3>

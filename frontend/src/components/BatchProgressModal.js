@@ -47,7 +47,7 @@ export default function BatchProgressModal({ isOpen, onClose, jobId, projectId, 
             <div className="w-8 h-8 bg-slate-900 rounded-sm flex items-center justify-center">
               <Lightning weight="fill" className="text-white w-4 h-4" />
             </div>
-            <h3 className="text-base font-semibold text-slate-900" style={{ fontFamily: "'Chivo', sans-serif" }}>
+            <h3 className="text-base font-semibold text-slate-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
               {isCompleted ? "Procesamiento Completado" : isError ? "Error en Procesamiento" : "Procesando Proyecto EDGE"}
             </h3>
           </div>

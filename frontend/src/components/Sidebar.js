@@ -12,17 +12,17 @@ export default function Sidebar({ projects, onNavigate }) {
 
   return (
     <aside
-      className="fixed top-0 left-0 w-[260px] h-screen bg-white border-r border-slate-200 flex flex-col z-30"
+      className="fixed top-0 left-0 w-[260px] h-screen bg-white/80 backdrop-blur-md border-r border-slate-100 flex flex-col z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
       data-testid="sidebar"
     >
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b border-slate-200">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-slate-900 rounded-sm flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
             <Lightning weight="fill" className="text-white w-4 h-4" />
           </div>
           <div>
-            <span className="text-sm font-semibold text-slate-900 tracking-tight" style={{ fontFamily: "'Chivo', sans-serif" }}>
+            <span className="text-sm font-bold text-slate-900 tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
               EDGE
             </span>
             <span className="text-[10px] uppercase tracking-[0.1em] text-slate-400 block leading-tight">

@@ -34,7 +34,7 @@ export default function Login({ onLogin }) {
           <div className="h-14 w-14 bg-emerald-500 rounded-xl flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.3)] mb-5">
             <Zap size={28} className="text-white" fill="currentColor" />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: "'Chivo', sans-serif" }}>
+          <h2 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
             GProA Edge
           </h2>
           <p className="text-slate-400 text-sm">Ingresa a la plataforma de certificación</p>

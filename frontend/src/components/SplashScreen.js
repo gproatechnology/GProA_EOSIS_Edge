@@ -31,7 +31,7 @@ export default function SplashScreen({ onFinish }) {
         <div className="h-20 w-20 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(16,185,129,0.4)] mb-6">
           <Zap size={40} className="text-white" fill="currentColor" />
         </div>
-        <h1 className="text-4xl font-bold tracking-tight mb-2" style={{ fontFamily: "'Chivo', sans-serif" }}>
+        <h1 className="text-4xl font-bold tracking-tight mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
           GProA Edge
         </h1>
         <p className="text-slate-400 tracking-widest uppercase text-sm font-semibold">

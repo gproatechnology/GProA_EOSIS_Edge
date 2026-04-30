@@ -12,6 +12,11 @@ module.exports = {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
+  		boxShadow: {
+  			'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+  			'glow': '0 0 15px rgba(99, 102, 241, 0.5)',
+  			'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+  		},
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',

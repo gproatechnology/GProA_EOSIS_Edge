@@ -126,7 +126,7 @@ export default function ExtractedDataTab({ projectId, files }) {
         <div className="mb-6" data-testid="eem22-section">
           <div className="flex items-center gap-2 mb-3">
             <Lightning weight="fill" className="w-4 h-4 text-sky-500" />
-            <h3 className="text-base font-medium text-slate-900" style={{ fontFamily: "'Chivo', sans-serif" }}>
+            <h3 className="text-base font-medium text-slate-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
               EEM22 — Tabla de Luminarias
             </h3>
           </div>
@@ -207,7 +207,7 @@ export default function ExtractedDataTab({ projectId, files }) {
       {/* Areas Section */}
       {processedFiles.some((f) => f.areas && f.areas.length > 0) && (
         <div>
-          <h3 className="text-base font-medium text-slate-900 mb-3" style={{ fontFamily: "'Chivo', sans-serif" }}>
+          <h3 className="text-base font-medium text-slate-900 mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
             Areas Calculadas
           </h3>
           <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
