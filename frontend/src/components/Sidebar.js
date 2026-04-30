@@ -1,9 +1,14 @@
 import { useLocation } from "react-router-dom";
-import { Folders, House, Lightning } from "@phosphor-icons/react";
+import { Folders, House, Lightning, SignOut } from "@phosphor-icons/react";
 
 export default function Sidebar({ projects, onNavigate }) {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
+
+  const handleLogout = () => {
+    localStorage.removeItem("gproa_session");
+    window.location.href = "/";
+  };
 
   return (
     <aside
@@ -72,10 +77,18 @@ export default function Sidebar({ projects, onNavigate }) {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-slate-200">
+      <div className="px-5 py-4 border-t border-slate-200 flex items-center justify-between">
         <p className="text-[10px] text-slate-400">
           EDGE Certification Tool v1.0
         </p>
+        <button
+          onClick={handleLogout}
+          className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-50"
+          title="Cerrar Sesión"
+          data-testid="logout-button"
+        >
+          <SignOut className="w-4 h-4" />
+        </button>
       </div>
     </aside>
   );
