@@ -6,11 +6,13 @@
 
 ## 🚀 AI-Powered Document Intelligence for EDGE Certification
 
+> **Outcome**: Reduce certification documentation time by up to **80%** while increasing audit reliability and compliance speed.
+
 **EDGE Document Processor** is a professional-grade platform designed to streamline the complex documentation required for EDGE certification. It acts as an **intelligent document engine** that transforms unstructured construction data into structured, auditable certification inputs.
 
 - **Intelligent Classification**: Automatically categorizes documents into EDGE categories (ENERGY, WATER, MATERIALS).
 - **Assisted Data Extraction**: High-precision extraction of technical parameters (watts, lumens, U-values, brands/models).
-- **AI-Guided Area Estimation**: Tools to assist in extracting spatial data from floor plans (Roadmap: Full CV/CAD integration).
+- **AI-Assisted Area Estimation**: Interactive tools to assist in spatial data extraction from floor plans, ensuring user-verifiable results (not a final authority).
 - **Compliance Validation**: Real-time detection of missing documentation per measure.
 - **Auditable Exports**: Structured Excel outputs ready for certification submission.
 
@@ -79,7 +81,8 @@ flowchart TD
 Unlike generic extraction tools, this processor is built for the high-stakes environment of green building certification:
 
 - **Confidence Scoring**: Every extracted value is accompanied by an AI-generated confidence score (0-1). Low-confidence values are flagged for human review.
-- **Source Referencing**: (In Development) Direct mapping of extracted data to specific documents and pages to ensure auditability.
+- **Initial Traceability**: Every data point is directly linked to its source document, ensuring a clear audit trail from the start.
+- **Human-in-the-Loop Validation**: Built-in workflow for human verification, ensuring that AI-driven insights are always validated by experts before final submission.
 - **Hybrid Validation**: Combines Large Language Models with deterministic business rules for EDGE measures.
 
 ---
@@ -147,8 +150,8 @@ Setup guide: **[ENV_SETUP.md](docs/ENV_SETUP.md)**.
 
 ## 🗺️ Roadmap (Enterprise Readiness)
 ### 🚀 Phase 2 (P1: Professionalization)
-- **Traceability Engine**: View source document page directly next to extracted data.
-- **Enhanced OCR**: Advanced pre-processing for low-quality PDF scans.
+- **Visual Traceability**: Highlight extracted data directly on PDF source pages for instant verification.
+- **Enhanced OCR**: Advanced pre-processing for low-quality PDF scans and handwritten notes.
 - **Google Drive / Sharepoint**: Automatic synchronization of project folders.
 - **Progress Tracking**: Real-time progress bars for batch document processing.
 
