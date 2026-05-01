@@ -116,19 +116,50 @@ if errorlevel 1 (
 exit /b 0
 
 :check_services_status
-echo [Estado]
-netstat -aon | findstr ":%BACKEND_PORT% " >nul
-if errorlevel 1 (
-    echo [BACKEND] %BACKEND_PORT%: LIBRE
-) else (
-    echo [BACKEND] %BACKEND_PORT%: OCUPADO
+echo ========================================================
+echo                 ESTADO DE SERVICIOS
+echo ========================================================
+call :check_service_detail %BACKEND_PORT% BACKEND
+call :check_service_detail %FRONTEND_PORT% FRONTEND
+echo.
+call :check_backend_health
+exit /b 0
+
+:check_service_detail
+set "PORT=%1"
+set "NAME=%2"
+set "PID="
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":%PORT% "') do (
+    set "PID=%%a"
 )
-netstat -aon | findstr ":%FRONTEND_PORT% " >nul
-if errorlevel 1 (
-    echo [FRONTEND] %FRONTEND_PORT%: LIBRE
-) else (
-    echo [FRONTEND] %FRONTEND_PORT%: OCUPADO
+if not defined PID (
+    echo [%NAME%] Puerto %PORT%: LIBRE
+    exit /b 0
 )
+echo [%NAME%] Puerto %PORT%: ACTIVO (PID: !PID!)
+for /f "tokens=1,2,5" %%a in ('tasklist /FI "PID eq !PID!" ^| findstr !PID!') do (
+    echo    Proceso: %%a
+    echo    Memoria: %%b
+)
+exit /b 0
+
+:check_backend_health
+echo -------------------------------
+echo   HEALTH CHECK BACKEND
+echo -------------------------------
+curl -s --max-time 2 http://localhost:%BACKEND_PORT%/api/ > "%TEMP%\temp_health.txt"
+if %errorlevel% neq 0 (
+    echo [BACKEND] No responde (Offline o iniciando...)
+    if exist "%TEMP%\temp_health.txt" del "%TEMP%\temp_health.txt" >nul 2>&1
+    exit /b 0
+)
+set /p response=<"%TEMP%\temp_health.txt"
+if "%response%"=="" (
+    echo [BACKEND] Sin respuesta valida
+) else (
+    echo [BACKEND] OK - API responde correctamente
+)
+if exist "%TEMP%\temp_health.txt" del "%TEMP%\temp_health.txt" >nul 2>&1
 exit /b 0
 
 :check_port
@@ -137,27 +168,42 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":%p% "') do exit /b 1
 exit /b 0
 
 :stop_all
-taskkill /FI "WINDOWTITLE eq GProA EDGE*" /T /F >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":%BACKEND_PORT% "') do taskkill /F /PID %%a >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":%FRONTEND_PORT% "') do taskkill /F /PID %%a >nul 2>&1
+echo.
+echo [INFO] Iniciando cierre amigable de servicios...
+:: 1. Intentar cerrar ventanas por titulo
+taskkill /FI "WINDOWTITLE eq GProA EDGE*" /T >nul 2>&1
+
+:: 2. Cerrar procesos especificos por puerto si aun existen
+for %%p in (%BACKEND_PORT% %FRONTEND_PORT%) do (
+    for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":%%p "') do (
+        echo [INFO] Liberando puerto %%p (PID: %%a)...
+        taskkill /F /PID %%a /T >nul 2>&1
+    )
+)
+echo [OK] Servicios detenidos completamente.
 exit /b 0
 
 :diagnostic
 echo ========================================================
-echo           DIAGNOSTICO
+echo                 DIAGNOSTICO AVANZADO
 echo ========================================================
 echo.
-echo [1] python: 
-python --version
-echo [2] node: 
-node --version
+echo [1] Python:
+python --version 2>&1
+echo [2] Node:
+node --version 2>&1
 echo.
-echo [3] Puerto %BACKEND_PORT%: 
-call :check_port %BACKEND_PORT%
-if errorlevel 1 (echo OCUPADO) else (echo LIBRE)
-echo [4] Puerto %FRONTEND_PORT%: 
-call :check_port %FRONTEND_PORT%
-if errorlevel 1 (echo OCUPADO) else (echo LIBRE)
+echo [3] Estado de Puertos:
+call :check_service_detail %BACKEND_PORT% BACKEND
+call :check_service_detail %FRONTEND_PORT% FRONTEND
+echo.
+echo [4] Health API:
+call :check_backend_health
+echo.
+echo [5] Variables de Entorno:
+echo     ROOT_DIR: %ROOT_DIR%
+echo     BACKEND_PORT: %BACKEND_PORT%
+echo     FRONTEND_PORT: %FRONTEND_PORT%
 echo.
 echo ========================================================
 exit /b 0
