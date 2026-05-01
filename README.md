@@ -130,7 +130,7 @@ docker-compose down           # Para pero conserva datos
 docker-compose down -v        # Para y ELIMINA volúmenes (¡cuidado!)
 ```
 
-**Más comandos:** Ver **[DOCKER_COMPOSE.md](DOCKER_COMPOSE.md)**.
+**Más comandos:** Ver **[DOCKER_COMPOSE.md](docs/DOCKER_COMPOSE.md)**.
 
 ---
 
@@ -178,7 +178,7 @@ Deploy directly to Render.com from GitHub (no Docker needed locally).
 
 **No variables needed** – `render.yaml` configures everything automatically.
 
-See **[RENDER_DEPLOY_SUBMAIN.md](RENDER_DEPLOY_SUBMAIN.md)**.
+See **[RENDER_DEPLOY_SUBMAIN.md](docs/RENDER_DEPLOY_SUBMAIN.md)**.
 
 ---
 
@@ -200,7 +200,7 @@ Deploy to Render **without MongoDB or OpenAI keys**. Uses SQLite + mock AI.
 - `DEMO_MODE` → `true`
 - No manual setup needed.
 
-Full guide: **[RENDER_DEPLOY_SUBMAIN.md](RENDER_DEPLOY_SUBMAIN.md)**.
+Full guide: **[RENDER_DEPLOY_SUBMAIN.md](docs/RENDER_DEPLOY_SUBMAIN.md)**.
 
 ---
 
@@ -215,7 +215,7 @@ For real AI processing and cloud database:
 | `DEMO_MODE` | Set to `false` | No |
 | `CORS_ORIGINS` | Allowed origins (e.g., `https://yourdomain.com`) | ✅ Yes |
 
-Setup guide: **[ENV_SETUP.md](ENV_SETUP.md)**.
+Setup guide: **[ENV_SETUP.md](docs/ENV_SETUP.md)**.
 
 ---
 
@@ -238,7 +238,7 @@ Or manually test:
 2. **Frontend loads:** Open frontend URL in browser
 3. **Full flow:** Create project → upload file → process → export
 
-See **[RENDER_STEP_BY_STEP.md](RENDER_STEP_BY_STEP.md)** for complete testing checklist.
+See **[RENDER_STEP_BY_STEP.md](docs/RENDER_STEP_BY_STEP.md)** for complete testing checklist.
 
 ---
 

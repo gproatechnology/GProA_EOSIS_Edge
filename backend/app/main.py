@@ -16,11 +16,16 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 # Include API Router
 app.include_router(api_router, prefix="/api")
 
+origins = os.environ.get('CORS_ORIGINS', '*').split(',')
+allow_credentials = True
+if '*' in origins:
+    allow_credentials = False
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_credentials=allow_credentials,
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
