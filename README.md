@@ -4,25 +4,28 @@
 [![Backend Tests](https://img.shields.io/badge/Backend-100%25-brightgreen.svg)]()
 [![Frontend Tests](https://img.shields.io/badge/Frontend-95%25-brightgreen.svg)]()
 
-## 🚀 AI-Powered EDGE Certification Document Manager
+## 🚀 AI-Powered Document Intelligence for EDGE Certification
 
-**EDGE Document Processor** is an intelligent platform for EDGE certification projects. Upload construction documents (plans, spec sheets, photos), and GPT-4o automatically:
-- Classifies into EDGE categories (DESIGN, ENERGY, WATER, MATERIALS)
-- Extracts data (watts, lumens, equipment, brand/model)
-- Calculates areas from floor plans
-- Validates completeness (missing docs per measure)
-- Generates Excel exports
+**EDGE Document Processor** is a professional-grade platform designed to streamline the complex documentation required for EDGE certification. It acts as an **intelligent document engine** that transforms unstructured construction data into structured, auditable certification inputs.
 
-MVP complete with 100% backend tests, 95% frontend tests.
+- **Intelligent Classification**: Automatically categorizes documents into EDGE categories (ENERGY, WATER, MATERIALS).
+- **Assisted Data Extraction**: High-precision extraction of technical parameters (watts, lumens, U-values, brands/models).
+- **AI-Guided Area Estimation**: Tools to assist in extracting spatial data from floor plans (Roadmap: Full CV/CAD integration).
+- **Compliance Validation**: Real-time detection of missing documentation per measure.
+- **Auditable Exports**: Structured Excel outputs ready for certification submission.
+
+---
 
 ## ✨ Features
-- ✅ Project CRUD & management
-- ✅ Multi-file upload with AI processing pipeline
-- ✅ EDGE classification + measure detection
-- ✅ Technical data extraction + area calculations
-- ✅ Real-time EDGE status dashboard (categories, measures, gaps)
-- ✅ Professional UI (React 19 + Tailwind + Shadcn)
-- ✅ Excel export (data + areas sheets)
+- 📋 **Project Governance**: Centralized management of certification projects and typologies.
+- 📂 **Multi-Source Pipeline**: Upload and process various file types (PDF, Images, Excel).
+- 🧠 **Context-Aware Processing**: GPT-4o powered classification and technical extraction.
+- ⚖️ **Confidence & Traceability**: Integrated confidence scoring per extraction and source referencing.
+- 📊 **Executive Dashboard**: Real-time monitoring of project status, documentation gaps, and EDGE metrics.
+- 🎨 **Premium UI**: Modern, responsive interface built with React 19, Tailwind, and Shadcn UI.
+- 📤 **Enterprise Export**: Advanced Excel generation with detailed data sheets.
+
+---
 
 ## 🛠 Tech Stack
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
@@ -31,45 +34,63 @@ MVP complete with 100% backend tests, 95% frontend tests.
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css)
 ![GPT-4o](https://img.shields.io/badge/OpenAI-GPT--4o-orange?style=for-the-badge&logo=openai)
 
+---
+
 ## 🏗️ Architecture
 
 ```mermaid
 graph TB
     FE[React Frontend] -->|REST API| API[FastAPI Server]
-    API -->|Persist| DB[MongoDB]
+    API -->|Persist| DB[MongoDB / SQLite]
     API -->|Classify/Extract/Validate| LLM[GPT-4o]
     LLM -->|JSON| API
     DB -->|Query| API
     API -->|Data/Status/Export| FE
 ```
 
+---
+
 ## 🔄 Document Processing Flow
 
 ```mermaid
 flowchart TD
-    A[File Upload] --> B[Text Extraction]
+    A[File Upload] --> B[Text/Image Extraction]
     B --> C[AI Classify<br/>Category + Measure]
-    C --> D[AI Extract<br/>watts, lumens, equipo...]
-    D --> E{doc_type == 'plano' ?}
-    E -->|Yes| F[AI Calc Areas]
-    E -->|No| G[AI Validation<br/>Missing Docs]
+    C --> D[AI Extract<br/>Technical Parameters]
+    D --> E{doc_type == 'blueprint' ?}
+    E -->|Yes| F[AI-Assisted<br/>Area Estimation]
+    E -->|No| G[Validation Layer<br/>Confidence + Gaps]
     F --> G
-    G --> H[Store in DB]
-    H --> I[Dashboard + Excel Export]
+    G --> H[Persistence<br/>MongoDB / SQLite]
+    H --> I[Audit Ready Dashboard<br/>+ Excel Export]
 
-    classDef startEnd fill:#e1f5fe
-    classDef ai fill:#fff3e0
-    classDef db fill:#f3e5f5
+    classDef startEnd fill:#e1f5fe,stroke:#01579b
+    classDef ai fill:#fff3e0,stroke:#e65100
+    classDef db fill:#f3e5f5,stroke:#4a148c
     class A,I startEnd
     class C,D,F,G ai
     class H db
 ```
+
+---
+
+## 🛡️ Trust & Reliability Layer (Auditor Ready)
+
+Unlike generic extraction tools, this processor is built for the high-stakes environment of green building certification:
+
+- **Confidence Scoring**: Every extracted value is accompanied by an AI-generated confidence score (0-1). Low-confidence values are flagged for human review.
+- **Source Referencing**: (In Development) Direct mapping of extracted data to specific documents and pages to ensure auditability.
+- **Hybrid Validation**: Combines Large Language Models with deterministic business rules for EDGE measures.
+
+---
 
 ## 🎯 Screenshots
 ![Dashboard](./screenshots/dashboard.png)
 ![File Upload](./screenshots/upload.png)
 ![EDGE Status](./screenshots/status.png)
 *(Run locally to generate screenshots)*
+
+---
 
 ## 🚀 Quick Start
 
@@ -80,7 +101,7 @@ flowchart TD
 
 ---
 
-## 🐳 **Option 1: Docker Compose (Recommended – Everything in One Command)**
+## 🐳 **Option 1: Docker Compose (Recommended)**
 
 La forma más fácil de iniciar todo el stack (backend + frontend) con un solo comando.
 
@@ -91,116 +112,21 @@ git clone https://github.com/gproatechnology/GProA_EOSIS_Edge.git
 cd GProA_EOSIS_Edge
 git checkout submain
 
-# 2. (Opcional) Configura variables de entorno
-cp .env.docker .env  # Edita si quieres cambiar defaults
-
-# 3. Inicia todos los servicios
+# 2. Inicia todos los servicios
 docker-compose up
-
-# 4. Accede:
-#    Frontend: http://localhost:3000
-#    Backend API: http://localhost:8000
-#    API Docs (Swagger): http://localhost:8000/docs
 ```
-
-**Hot-Reload activado:**
-- Cambias código en `backend/` → FastAPI recarga automáticamente
-- Cambias código en `frontend/` → React Fast Refresh recarga en browser
-
-### **Producción (Imágenes Optimizadas)**
-```bash
-# Usa perfil de producción (sin hot-reload, imágenes más pequeñas)
-docker-compose --profile production up -d
-
-# Accede:
-# Frontend: http://localhost:3000  (Nginx)
-# Backend: http://localhost:8000
-```
-
-**Ver logs:**
-```bash
-docker-compose logs -f        # Todos
-docker-compose logs -f backend # Solo backend
-docker-compose logs -f frontend # Solo frontend
-```
-
-**Detener:**
-```bash
-docker-compose down           # Para pero conserva datos
-docker-compose down -v        # Para y ELIMINA volúmenes (¡cuidado!)
-```
-
-**Más comandos:** Ver **[DOCKER_COMPOSE.md](docs/DOCKER_COMPOSE.md)**.
 
 ---
 
-## 🎯 **Option 2: Demo Mode (No Docker – Manual Local)**
+## 🧪 Demo Mode vs 🏭 Production Mode
 
-Run backend and frontend separately without containers. Good for debugging.
-
-### **Backend**
-```bash
-cd backend
-python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env   # Edit if needed (defaults work for demo)
-uvicorn server:app --reload --port 8000
-```
-
-### **Frontend**
-```bash
-cd frontend
-yarn install
-yarn start
-```
-
-App: http://localhost:3000  
-API: http://localhost:8000
-
----
-
-## 🎯 **Option 3: Render Cloud (No Docker Locally)**
-
-Deploy directly to Render.com from GitHub (no Docker needed locally).
-
-### **Demo Mode (Zero Config)**
-1. Push to `submain` branch (already done)
-2. En Render Dashboard → **New** → **Blueprint**
-3. Select repo `gproatechnology/GProA_EOSIS_Edge`
-4. Branch: **`submain`**
-5. Click **"Apply Blueprint"** → Services auto-created
-6. Espera 5 min → App live at `*.onrender.com`
-
-**No variables needed** – `render.yaml` configures everything automatically.
-
-See **[RENDER_DEPLOY_SUBMAIN.md](docs/RENDER_DEPLOY_SUBMAIN.md)**.
-
----
-
-## ☁️ **Deployment to Render**
-
-### **🚀 Demo Mode (No API Keys)**
-Deploy to Render **without MongoDB or OpenAI keys**. Uses SQLite + mock AI.
-
-**Steps:**
-1. Go to [Render.com](https://render.com) → **New** → **Blueprint**
-2. Connect repo: `gproatechnology/GProA_EOSIS_Edge`
-3. **Select branch: `submain`**
-4. Apply blueprint → services auto-created
-5. Wait → your app is live
-
-**Variables auto-configured** in `render.yaml`:
-- `MONGO_URL` → empty (uses SQLite)
-- `OPENAI_API_KEY` → empty (uses mock AI)
-- `DEMO_MODE` → `true`
-- No manual setup needed.
-
-Full guide: **[RENDER_DEPLOY_SUBMAIN.md](docs/RENDER_DEPLOY_SUBMAIN.md)**.
+| Feature | **Demo Mode** (Default) | **Production Mode** |
+|---------|-------------------------|---------------------|
+| **Database** | SQLite (Local/Ephemeral) | MongoDB Atlas (Cloud/Persistent) |
+| **AI Engine** | Mock AI (Hardcoded logic) | OpenAI GPT-4o (Real-time Analysis) |
+| **Cost** | $0 (No API Keys needed) | Pay-per-token (OpenAI API Key) |
+| **Accuracy** | Simulation only | Real Document Processing |
+| **Use Case** | UX Review & Feature Demos | Real Project Certification |
 
 ---
 
@@ -219,57 +145,37 @@ Setup guide: **[ENV_SETUP.md](docs/ENV_SETUP.md)**.
 
 ---
 
-## ✅ Testing After Deployment
+## 🗺️ Roadmap (Enterprise Readiness)
+### 🚀 Phase 2 (P1: Professionalization)
+- **Traceability Engine**: View source document page directly next to extracted data.
+- **Enhanced OCR**: Advanced pre-processing for low-quality PDF scans.
+- **Google Drive / Sharepoint**: Automatic synchronization of project folders.
+- **Progress Tracking**: Real-time progress bars for batch document processing.
 
-After deploying to Render, run the verification script:
-
-```bash
-# Clone the verification script to your local machine
-curl -O https://raw.githubusercontent.com/gproatechnology/GProA_EOSIS_Edge/main/verify-deployment.sh
-chmod +x verify-deployment.sh
-
-# Run with your URLs
-./verify-deployment.sh https://gproa-edge-backend.onrender.com https://gproa-edge-frontend.onrender.com
-```
-
-Or manually test:
-
-1. **Backend health:** `GET https://...onrender.com/api/` → should return JSON
-2. **Frontend loads:** Open frontend URL in browser
-3. **Full flow:** Create project → upload file → process → export
-
-See **[RENDER_STEP_BY_STEP.md](docs/RENDER_STEP_BY_STEP.md)** for complete testing checklist.
+### 🏢 Phase 3 (P2: Enterprise & Security)
+- **RBAC Security**: Role-Based Access Control (Admin, Auditor, Consultant).
+- **Multi-Tenant Architecture**: Complete data isolation for different client organizations.
+- **Advanced CV Integration**: Computer Vision for deterministic area calculation from CAD/PDF.
+- **API for Integrations**: Connect with existing ERP or Project Management tools.
 
 ---
-
-## 🗺️ Roadmap (from PRD)
-### Phase 2 (P1)
-- Google Drive auto-sync
-- PDF OCR support
-- Batch processing progress
-
-### Future (P2)
-- ZIP exports
-- Multi-user auth
-- Real-time collab
-- Advanced CV analysis
 
 ## 📁 Project Structure
 ```
 GProA_Edge/
 ├── backend/          # FastAPI + MongoDB + GPT-4o
 ├── frontend/         # React + Tailwind + Shadcn UI
+├── docs/             # Technical documentation & guides
 ├── memory/PRD.md     # Product Requirements
-├── test_reports/     # Test results (95-100%)
 └── README.md         # This file
 ```
+
+---
 
 ## 🤝 Contributing
 1. Fork & clone
 2. Create feature branch
-3. `black . && yarn lint`
-4. Test: `pytest backend/` & `yarn test`
-5. PR to `main`
+3. PR to `main`
 
 ## 📄 License
 MIT
@@ -281,4 +187,3 @@ MIT
 
 ---
 ⭐ Star us on GitHub!
-
