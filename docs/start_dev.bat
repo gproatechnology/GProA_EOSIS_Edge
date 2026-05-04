@@ -1,6 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 title GProA EDGE - Development Launcher
+chcp 65001 >nul
 color 0A
 
 :: ================= CONFIGURACIÓN =================
@@ -269,9 +270,10 @@ echo  API Base : http://localhost:%BACKEND_PORT%/api
 echo  Swagger  : http://localhost:%BACKEND_PORT%/docs
 echo  ReDoc    : http://localhost:%BACKEND_PORT%/redoc
 echo ====================================================
-start "GProA EDGE - Backend" /D "%bd%" cmd /c "call venv\Scripts\activate.bat && uvicorn app.main:app --reload --port %BACKEND_PORT% > "%BACKEND_LOG%" 2>&1"
+:: Usar cmd /c con comillas dobles externas para evitar que se rompa la redirección con espacios
+start "GProA EDGE - Backend" /D "%bd%" cmd /c ""call venv\Scripts\activate.bat && uvicorn app.main:app --reload --port %BACKEND_PORT% > "%BACKEND_LOG%" 2>&1 || (echo [ERROR] El backend se detuvo inesperadamente. && pause)""
 if errorlevel 1 (
-    echo [ERROR] No se pudo iniciar el backend.
+    echo [ERROR] No se pudo lanzar el comando start para el backend.
     exit /b 1
 )
 echo [OK] Backend lanzado (log en %BACKEND_LOG%)
@@ -304,9 +306,10 @@ if not errorlevel 1 (
 
 echo.
 echo [INFO] Iniciando Frontend (React)...
-start "GProA EDGE - Frontend" /D "%fd%" cmd /c "set REACT_APP_BACKEND_URL=http://localhost:%BACKEND_PORT%/ && npm start > "%FRONTEND_LOG%" 2>&1"
+:: Corregir el espacio al final de la variable de entorno y mejorar el manejo de comillas
+start "GProA EDGE - Frontend" /D "%fd%" cmd /c ""set "REACT_APP_BACKEND_URL=http://localhost:%BACKEND_PORT%/" && npm start > "%FRONTEND_LOG%" 2>&1 || (echo [ERROR] El frontend se detuvo inesperadamente. && pause)""
 if errorlevel 1 (
-    echo [ERROR] No se pudo iniciar el frontend.
+    echo [ERROR] No se pudo lanzar el comando start para el frontend.
     exit /b 1
 )
 echo [OK] Frontend lanzado (log en %FRONTEND_LOG%)
