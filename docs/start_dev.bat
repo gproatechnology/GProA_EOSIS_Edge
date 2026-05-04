@@ -206,13 +206,13 @@ exit /b 0
 echo -------------------------------
 echo   HEALTH CHECK BACKEND
 echo -------------------------------
-set "health_url=http://localhost:%BACKEND_PORT%/api/"
+set "health_url=http://localhost:%BACKEND_PORT%/api"
 where curl >nul 2>&1
 if %errorlevel% equ 0 (
     curl -s --max-time 3 "%health_url%" >nul 2>&1
     if %errorlevel% equ 0 ( echo [BACKEND] OK - API responde ) else ( echo [BACKEND] No responde o iniciando )
 ) else (
-    powershell -Command "try { (Invoke-WebRequest -Uri '%health_url%' -TimeoutSec 3).StatusCode -eq 200 } catch { $false }" >nul 2>&1
+    powershell -Command "try { $r = Invoke-WebRequest -Uri '%health_url%' -TimeoutSec 3; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
     if %errorlevel% equ 0 ( echo [BACKEND] OK - API responde ) else ( echo [BACKEND] No responde o iniciando )
 )
 exit /b 0
@@ -270,8 +270,8 @@ echo  API Base : http://localhost:%BACKEND_PORT%/api
 echo  Swagger  : http://localhost:%BACKEND_PORT%/docs
 echo  ReDoc    : http://localhost:%BACKEND_PORT%/redoc
 echo ====================================================
-:: Usar cmd /c con comillas dobles externas para evitar que se rompa la redirección con espacios
-start "GProA EDGE - Backend" /D "%bd%" cmd /c ""call venv\Scripts\activate.bat && uvicorn app.main:app --reload --port %BACKEND_PORT% > "%BACKEND_LOG%" 2>&1 || (echo [ERROR] El backend se detuvo inesperadamente. && pause)""
+:: Iniciar usando cmd /c con doble comilla para soportar rutas con espacios y redirección
+start "GProA EDGE - Backend" /D "%bd%" cmd /c ""call venv\Scripts\activate.bat && (uvicorn app.main:app --reload --port %BACKEND_PORT% > "%BACKEND_LOG%" 2>&1 || (echo [ERROR] El backend falló. Revisa %BACKEND_LOG% && pause))""
 if errorlevel 1 (
     echo [ERROR] No se pudo lanzar el comando start para el backend.
     exit /b 1
@@ -307,7 +307,7 @@ if not errorlevel 1 (
 echo.
 echo [INFO] Iniciando Frontend (React)...
 :: Corregir el espacio al final de la variable de entorno y mejorar el manejo de comillas
-start "GProA EDGE - Frontend" /D "%fd%" cmd /c ""set "REACT_APP_BACKEND_URL=http://localhost:%BACKEND_PORT%/" && npm start > "%FRONTEND_LOG%" 2>&1 || (echo [ERROR] El frontend se detuvo inesperadamente. && pause)""
+start "GProA EDGE - Frontend" /D "%fd%" cmd /c ""set "REACT_APP_BACKEND_URL=http://localhost:%BACKEND_PORT%/" && (npm start > "%FRONTEND_LOG%" 2>&1 || (echo [ERROR] El frontend falló. Revisa %FRONTEND_LOG% && pause))""
 if errorlevel 1 (
     echo [ERROR] No se pudo lanzar el comando start para el frontend.
     exit /b 1
