@@ -38,15 +38,15 @@ const getPriorityColor = (priority) => {
   switch (priority?.toLowerCase()) {
     case "crítica":
     case "critica":
-      return "bg-red-50 text-red-600 border-red-100";
+      return "bg-red-500/10 text-red-500 border-red-500/20";
     case "alta":
-      return "bg-orange-50 text-orange-600 border-orange-100";
+      return "bg-orange-500/10 text-orange-500 border-orange-500/20";
     case "media":
-      return "bg-blue-50 text-blue-600 border-blue-100";
+      return "bg-blue-500/10 text-blue-500 border-blue-500/20";
     case "baja":
-      return "bg-emerald-50 text-emerald-600 border-emerald-100";
+      return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
     default:
-      return "bg-slate-50 text-slate-500 border-slate-100";
+      return "bg-muted text-muted-foreground border-border";
   }
 };
 
@@ -93,20 +93,20 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
   const isFiltered = search !== "" || filterTypology !== "all" || filterPriority !== "all";
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto" data-testid="project-dashboard">
+    <div className="p-6 md:p-8 max-w-[1600px] mx-auto bg-background text-foreground" data-testid="project-dashboard">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-4xl tracking-tight font-bold text-slate-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <h1 className="text-4xl tracking-tight font-bold" style={{ fontFamily: "'Outfit', sans-serif" }}>
             Proyectos
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Gestiona tus proyectos de certificacion EDGE
+          <p className="text-sm text-muted-foreground mt-1">
+            Gestiona tus proyectos de certificación EDGE
           </p>
         </div>
         <button
           onClick={() => setShowDialog(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:shadow-glow transition-all duration-300 hover:-translate-y-0.5"
+          className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
           data-testid="create-project-button"
         >
           <Plus weight="bold" className="w-4 h-4" />
@@ -115,20 +115,20 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-5 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
         <div className="stat-card">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-1">Total Proyectos</p>
-          <p className="text-2xl font-semibold text-slate-900 font-mono">{projects.length}</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Total Proyectos</p>
+          <p className="text-2xl font-bold font-mono">{projects.length}</p>
         </div>
         <div className="stat-card">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-1">Archivos Totales</p>
-          <p className="text-2xl font-semibold text-slate-900 font-mono">
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Archivos Totales</p>
+          <p className="text-2xl font-bold font-mono">
             {projects.reduce((sum, p) => sum + (p.file_count || 0), 0)}
           </p>
         </div>
         <div className="stat-card">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-1">Procesados</p>
-          <p className="text-2xl font-semibold text-slate-900 font-mono">
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Procesados</p>
+          <p className="text-2xl font-bold text-emerald-500 font-mono">
             {projects.reduce((sum, p) => sum + (p.processed_count || 0), 0)}
           </p>
         </div>
@@ -142,27 +142,28 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
       {/* Filters Bar */}
       <div className="flex flex-col md:flex-row gap-4 mb-8">
         <div className="relative flex-1">
-          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input 
             type="text"
             placeholder="Buscar proyecto por nombre..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+            className="w-full bg-card border border-border rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
           />
         </div>
         <div className="flex gap-2">
+          {/* Aquí se asume que Select ya usa estilos de tema o es de una librería como shadcn */}
           <Select value={filterTypology} onValueChange={setFilterTypology}>
-            <SelectTrigger className="w-[200px] bg-white border-slate-200 rounded-xl shadow-sm">
+            <SelectTrigger className="w-[200px] bg-card border-border rounded-xl shadow-sm text-foreground">
               <SelectValue placeholder="Tipología" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover text-popover-foreground border-border">
               <SelectItem value="all">Todas las tipologías ({projects.length})</SelectItem>
               {TYPOLOGIES.map(t => (
                 <SelectItem key={t.value} value={t.value}>
                   <div className="flex items-center justify-between w-full gap-8">
                     <span>{t.label}</span>
-                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 rounded-full">{getCountByTypology(t.value)}</span>
+                    <span className="text-[10px] bg-muted text-muted-foreground px-1.5 rounded-full">{getCountByTypology(t.value)}</span>
                   </div>
                 </SelectItem>
               ))}
@@ -170,16 +171,16 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
           </Select>
 
           <Select value={filterPriority} onValueChange={setFilterPriority}>
-            <SelectTrigger className="w-[160px] bg-white border-slate-200 rounded-xl shadow-sm">
+            <SelectTrigger className="w-[160px] bg-card border-border rounded-xl shadow-sm text-foreground">
               <SelectValue placeholder="Prioridad" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover text-popover-foreground border-border">
               <SelectItem value="all">Todas</SelectItem>
               {["Crítica", "Alta", "Media", "Baja"].map(p => (
                 <SelectItem key={p} value={p}>
                   <div className="flex items-center justify-between w-full gap-8">
                     <span>{p}</span>
-                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 rounded-full">{getCountByPriority(p)}</span>
+                    <span className="text-[10px] bg-muted text-muted-foreground px-1.5 rounded-full">{getCountByPriority(p)}</span>
                   </div>
                 </SelectItem>
               ))}
@@ -191,25 +192,25 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
       {/* Active Filter Pills */}
       {isFiltered && (
         <div className="flex items-center gap-2 mb-6 animate-fadeIn">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mr-2">Filtros Activos:</span>
+          <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mr-2">Filtros Activos:</span>
           {search && (
-            <button onClick={() => setSearch("")} className="filter-pill">
-              Búsqueda: {search} <span className="ml-1 text-slate-400">×</span>
+            <button onClick={() => setSearch("")} className="px-2 py-1 bg-muted text-muted-foreground rounded-lg text-xs hover:bg-muted/80 transition-colors">
+              Búsqueda: {search} <span className="ml-1 opacity-60">×</span>
             </button>
           )}
           {filterTypology !== "all" && (
-            <button onClick={() => setFilterTypology("all")} className="filter-pill">
-              Tipo: {filterTypology} <span className="ml-1 text-slate-400">×</span>
+            <button onClick={() => setFilterTypology("all")} className="px-2 py-1 bg-muted text-muted-foreground rounded-lg text-xs hover:bg-muted/80 transition-colors">
+              Tipo: {filterTypology} <span className="ml-1 opacity-60">×</span>
             </button>
           )}
           {filterPriority !== "all" && (
-            <button onClick={() => setFilterPriority("all")} className="filter-pill">
-              Prioridad: {filterPriority} <span className="ml-1 text-slate-400">×</span>
+            <button onClick={() => setFilterPriority("all")} className="px-2 py-1 bg-muted text-muted-foreground rounded-lg text-xs hover:bg-muted/80 transition-colors">
+              Prioridad: {filterPriority} <span className="ml-1 opacity-60">×</span>
             </button>
           )}
           <button 
             onClick={clearFilters}
-            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 ml-2"
+            className="text-[10px] font-bold text-primary hover:underline ml-2"
           >
             Limpiar todo
           </button>
@@ -220,27 +221,23 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="stat-card animate-pulse">
-              <div className="h-4 bg-slate-200 rounded w-2/3 mb-3" />
-              <div className="h-3 bg-slate-100 rounded w-1/3 mb-4" />
-              <div className="h-8 bg-slate-100 rounded w-full" />
-            </div>
+            <div key={i} className="stat-card h-40 animate-skeleton" />
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <div className="bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl p-16 text-center animate-fadeIn shadow-sm">
-          <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <Folders className="w-8 h-8 text-indigo-500" />
+        <div className="bg-card border border-border rounded-2xl p-16 text-center animate-fadeIn shadow-sm">
+          <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4 text-primary">
+            <Folders className="w-8 h-8" />
           </div>
-          <h3 className="text-xl font-medium text-slate-900 mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <h3 className="text-xl font-bold mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
             Sin proyectos
           </h3>
-          <p className="text-sm text-slate-500 mb-6">
+          <p className="text-sm text-muted-foreground mb-6">
             Crea tu primer proyecto para comenzar a clasificar documentos EDGE
           </p>
           <button
             onClick={() => setShowDialog(true)}
-            className="inline-flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 hover:shadow-glow transition-all duration-300"
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-primary/20 hover:scale-105 transition-all"
             data-testid="empty-create-project-button"
           >
             <Plus weight="bold" className="w-4 h-4" />
@@ -248,12 +245,12 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
           </button>
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl p-16 text-center animate-fadeIn shadow-sm">
-          <div className="w-16 h-16 bg-slate-50 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <Funnel className="w-8 h-8 text-slate-300" />
+        <div className="bg-card border border-border rounded-2xl p-16 text-center animate-fadeIn shadow-sm">
+          <div className="w-16 h-16 bg-muted rounded-xl flex items-center justify-center mx-auto mb-4 text-muted-foreground">
+            <Funnel className="w-8 h-8" />
           </div>
-          <h3 className="text-xl font-medium text-slate-900 mb-2">No hay resultados</h3>
-          <p className="text-sm text-slate-500">Intenta ajustar los filtros de búsqueda</p>
+          <h3 className="text-xl font-bold mb-2">No hay resultados</h3>
+          <p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -261,13 +258,13 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
             <button
               key={project.id}
               onClick={() => onNavigate(`/projects/${project.id}`)}
-              className="stat-card text-left hover:border-slate-300 transition-all duration-200 group animate-fadeIn"
+              className="stat-card text-left border border-border hover:border-primary transition-all duration-200 group animate-fadeIn"
               style={{ animationDelay: `${idx * 50}ms` }}
               data-testid={`project-card-${project.id}`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-bold text-slate-900 truncate" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  <h3 className="text-base font-bold text-foreground truncate" style={{ fontFamily: "'Outfit', sans-serif" }}>
                     {project.name}
                   </h3>
                   <div className="flex items-center gap-2 mt-1.5">
@@ -281,27 +278,27 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
                     )}
                   </div>
                   {project.square_meters > 0 && project.annual_consumption_kwh > 0 && (
-                    <div className="mt-2 flex items-center gap-1.5 text-slate-500">
-                      <div className="w-1 h-1 rounded-full bg-indigo-400" />
+                    <div className="mt-2 flex items-center gap-1.5 text-muted-foreground">
+                      <div className="w-1 h-1 rounded-full bg-primary" />
                       <p className="text-[11px] font-medium">
-                        {(project.annual_consumption_kwh / project.square_meters).toFixed(1)} <span className="text-[9px] text-slate-400">kWh/m²</span>
+                        {(project.annual_consumption_kwh / project.square_meters).toFixed(1)} <span className="text-[9px] opacity-60">kWh/m²</span>
                       </p>
                     </div>
                   )}
                 </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 transition-colors flex-shrink-0 mt-1" />
+                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-1" />
               </div>
-              <div className="flex items-center gap-4 mt-4 pt-3 border-t border-slate-100">
+              <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400">Archivos</p>
-                  <p className="text-lg font-semibold text-slate-900 font-mono">{project.file_count}</p>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Archivos</p>
+                  <p className="text-lg font-bold font-mono">{project.file_count}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400">Procesados</p>
-                  <p className="text-lg font-semibold text-slate-900 font-mono">{project.processed_count}</p>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Procesados</p>
+                  <p className="text-lg font-bold text-emerald-500 font-mono">{project.processed_count}</p>
                 </div>
                 <div className="ml-auto">
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] text-muted-foreground">
                     {new Date(project.created_at).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}
                   </p>
                 </div>

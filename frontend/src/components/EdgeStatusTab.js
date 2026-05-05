@@ -41,18 +41,20 @@ export default function EdgeStatusTab({ projectId }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20" data-testid="edge-status-loading">
-        <SpinnerGap className="w-6 h-6 text-slate-400 animate-spin" />
+        <SpinnerGap className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   if (!status || status.total_files === 0) {
     return (
-      <div className="bg-white border border-slate-200 rounded-sm p-12 text-center" data-testid="edge-status-empty">
-        <Lightning className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-        <p className="text-sm text-slate-500">Sin datos de estado EDGE</p>
-        <p className="text-xs text-slate-400 mt-1">
-          Procesa archivos para ver el estado de certificacion
+      <div className="bg-card border border-border rounded-xl p-20 text-center shadow-sm" data-testid="edge-status-empty">
+        <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4 text-muted-foreground">
+          <Lightning className="w-8 h-8" />
+        </div>
+        <p className="text-sm font-bold">Sin datos de estado EDGE</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Procesa archivos para ver el estado de certificación
         </p>
       </div>
     );
@@ -63,47 +65,58 @@ export default function EdgeStatusTab({ projectId }) {
     : 0;
 
   return (
-    <div data-testid="edge-status-tab">
+    <div data-testid="edge-status-tab" className="space-y-6">
       {/* Progress */}
-      <div className="stat-card mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400">
-            Progreso General
+      <div className="stat-card">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+            Progreso General de Procesamiento
           </p>
-          <span className="font-mono text-sm font-medium text-slate-900">{progressPercent}%</span>
+          <span className="font-mono text-2xl font-bold text-primary">{progressPercent}%</span>
         </div>
-        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="w-full h-3 bg-muted rounded-full overflow-hidden mb-4">
           <div
-            className="h-full bg-slate-900 rounded-full transition-all duration-500"
+            className="h-full bg-primary rounded-full transition-all duration-1000 shadow-[0_0_12px_rgba(var(--primary),0.3)]"
             style={{ width: `${progressPercent}%` }}
             data-testid="progress-bar"
           />
         </div>
-        <p className="text-xs text-slate-400 mt-2">
-          <span className="font-mono font-medium text-slate-700">{status.processed_files}</span> de{" "}
-          <span className="font-mono font-medium text-slate-700">{status.total_files}</span> archivos procesados
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-bold text-foreground">{status.processed_files}</span> de{" "}
+            <span className="font-bold text-foreground">{status.total_files}</span> archivos completados
+          </p>
+          <div className="flex items-center gap-1.5">
+             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+             <span className="text-[10px] font-bold uppercase tracking-tighter opacity-60">En tiempo real</span>
+          </div>
+        </div>
       </div>
 
       {/* Category Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {Object.entries(CATEGORY_CONFIG).map(([key, config]) => {
           const count = status.categories[key] || 0;
           const Icon = config.icon;
+          const colorClass = key === 'ENERGY' ? 'text-sky-500' : key === 'WATER' ? 'text-blue-500' : key === 'MATERIALS' ? 'text-amber-500' : 'text-emerald-500';
+          const bgClass = key === 'ENERGY' ? 'bg-sky-500/10' : key === 'WATER' ? 'bg-blue-500/10' : key === 'MATERIALS' ? 'bg-amber-500/10' : 'bg-emerald-500/10';
+          
           return (
             <div
               key={key}
-              className={`stat-card border-l-4 border-l-${config.color}-400`}
+              className="stat-card hover:border-primary/20 transition-all group"
               data-testid={`category-card-${key.toLowerCase()}`}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Icon weight="fill" className={`w-4 h-4 text-${config.color}-500`} />
-                <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400">
+              <div className="flex items-center gap-2 mb-3">
+                <div className={`w-8 h-8 ${bgClass} ${colorClass} rounded-lg flex items-center justify-center transition-transform group-hover:scale-110`}>
+                  <Icon weight="fill" className="w-4 h-4" />
+                </div>
+                <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
                   {config.label}
                 </p>
               </div>
-              <p className="text-2xl font-semibold text-slate-900 font-mono">{count}</p>
-              <p className="text-xs text-slate-400">documento{count !== 1 ? "s" : ""}</p>
+              <p className="text-3xl font-bold font-mono">{count}</p>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter mt-1">documento{count !== 1 ? "s" : ""}</p>
             </div>
           );
         })}
@@ -111,8 +124,8 @@ export default function EdgeStatusTab({ projectId }) {
 
       {/* Measures breakdown */}
       {Object.keys(status.measures).length > 0 && (
-        <div className="stat-card mb-6">
-          <h3 className="text-sm font-medium text-slate-900 mb-4" style={{ fontFamily: "'Outfit', sans-serif" }}>
+        <div className="stat-card">
+          <h3 className="text-sm font-bold mb-4" style={{ fontFamily: "'Outfit', sans-serif" }}>
             Medidas EDGE Detectadas
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -121,11 +134,11 @@ export default function EdgeStatusTab({ projectId }) {
               .map(([measure, count]) => (
                 <div
                   key={measure}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm"
+                  className="flex items-center gap-3 px-3 py-2 bg-muted/50 border border-border rounded-xl hover:bg-muted transition-colors"
                   data-testid={`measure-badge-${measure}`}
                 >
-                  <span className="font-mono text-xs font-medium text-slate-700">{measure}</span>
-                  <span className="w-5 h-5 flex items-center justify-center bg-slate-200 rounded-full text-[10px] font-semibold text-slate-600">
+                  <span className="font-mono text-xs font-bold text-primary">{measure}</span>
+                  <span className="w-6 h-6 flex items-center justify-center bg-primary/10 rounded-full text-[10px] font-bold text-primary">
                     {count}
                   </span>
                 </div>
@@ -136,26 +149,26 @@ export default function EdgeStatusTab({ projectId }) {
 
       {/* Missing documents */}
       {status.faltantes && status.faltantes.length > 0 && (
-        <div className="stat-card border-l-4 border-l-amber-400">
-          <h3 className="text-sm font-medium text-slate-900 mb-4 flex items-center gap-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
-            <WarningCircle weight="fill" className="w-4 h-4 text-amber-500" />
-            Documentos Faltantes
+        <div className="bg-amber-500/10 border-l-4 border-amber-500 p-5 rounded-r-xl animate-fadeIn">
+          <h3 className="text-sm font-bold text-amber-500 mb-4 flex items-center gap-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            <WarningCircle weight="fill" className="w-5 h-5" />
+            Alertas de Certificación
           </h3>
           <div className="space-y-3">
             {status.faltantes.map((item, idx) => (
               <div
                 key={idx}
-                className="flex items-start gap-3 p-3 bg-amber-50/50 border border-amber-100 rounded-sm"
+                className="flex items-start gap-4 p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl"
                 data-testid={`faltante-${idx}`}
               >
-                <span className="font-mono text-xs font-semibold text-amber-700 mt-0.5 shrink-0">
+                <span className="font-mono text-xs font-bold text-amber-500 mt-1 shrink-0">
                   {item.medida}
                 </span>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {(item.faltan || []).map((tipo, tidx) => (
                     <span
                       key={tidx}
-                      className="edge-badge invalid text-[10px] capitalize"
+                      className="text-[9px] px-2 py-0.5 bg-amber-500/20 text-amber-600 rounded-full font-bold uppercase tracking-tight"
                     >
                       {tipo.replace("_", " ")}
                     </span>
@@ -169,12 +182,14 @@ export default function EdgeStatusTab({ projectId }) {
 
       {/* All complete */}
       {status.faltantes && status.faltantes.length === 0 && status.processed_files > 0 && (
-        <div className="stat-card border-l-4 border-l-emerald-400">
-          <div className="flex items-center gap-3">
-            <CheckCircle weight="fill" className="w-6 h-6 text-emerald-500" />
+        <div className="stat-card border-l-4 border-l-emerald-500 bg-emerald-500/5 animate-fadeIn">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center">
+              <CheckCircle weight="fill" className="w-8 h-8" />
+            </div>
             <div>
-              <p className="text-sm font-medium text-slate-900">Documentacion Completa</p>
-              <p className="text-xs text-slate-500">No se detectaron documentos faltantes</p>
+              <p className="text-sm font-bold">Documentación Completa</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Todos los archivos necesarios han sido detectados satisfactoriamente</p>
             </div>
           </div>
         </div>

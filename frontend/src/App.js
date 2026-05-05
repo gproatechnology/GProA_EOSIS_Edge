@@ -45,7 +45,7 @@ function AppLayout() {
   }, [fetchProjects]);
 
   return (
-    <div className="flex min-h-screen bg-slate-50" data-testid="app-layout">
+    <div className="flex min-h-screen bg-background text-foreground transition-colors duration-300" data-testid="app-layout">
       <Sidebar projects={projects} onNavigate={navigate} />
       <main className="flex-1 ml-[260px]">
         <Routes>

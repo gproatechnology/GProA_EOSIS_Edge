@@ -9,7 +9,8 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc; /* Slate 50 */
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -79,6 +80,36 @@ h1, h2, h3, h4, h5, h6 {
     --chart-4: 160 84% 39%;         /* Emerald */
     --chart-5: 45 93% 47%;          /* Yellow/Orange */
   }
+
+  .dark {
+    --background: 222 47% 6%;       /* Darker Slate */
+    --foreground: 210 40% 98%;
+    
+    --card: 222 47% 9%;             /* Card in dark */
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 222 47% 6%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 238 84% 67%;
+    --primary-foreground: 210 40% 98%;
+    
+    --secondary: 215 25% 15%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 215 25% 15%;
+    --muted-foreground: 215 20% 65%;
+    
+    --accent: 238 84% 67%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 215 25% 18%;
+    --input: 215 25% 18%;
+    --ring: 238 84% 67%;
+  }
 }
 
 @layer base {
@@ -122,11 +153,59 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .edge-badge {
-  @apply px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200;
+  @apply px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary text-secondary-foreground border border-border;
+}
+
+.sidebar-link {
+  @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-muted-foreground hover:bg-muted hover:text-foreground;
+}
+
+.sidebar-link.active {
+  @apply bg-primary text-primary-foreground shadow-md shadow-primary/20;
+}
+
+.sidebar-link svg {
+  @apply w-5 h-5;
+}
+
+.stat-card {
+  background-color: hsl(var(--card)) !important;
+  @apply border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all;
+}
+
+.stat-card p, .stat-card span, .stat-card h3 {
+  @apply text-foreground;
+}
+
+.stat-card .text-muted-foreground {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.stat-card:hover {
+  @apply border-primary/20 shadow-primary/5;
+}
+
+.drop-zone {
+  @apply border-2 border-dashed border-border rounded-2xl p-10 text-center cursor-pointer transition-all bg-card/50 hover:bg-muted hover:border-primary/50;
+}
+
+.drop-zone.drag-over {
+  @apply border-primary bg-primary/5 scale-[1.01] shadow-lg shadow-primary/10;
 }
 
 @keyframes loading {
   0% { width: 0%; }
   50% { width: 70%; }
   100% { width: 100%; }
+}
+
+@keyframes skeleton {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.animate-skeleton {
+  animation: skeleton 2s infinite ease-in-out;
+  @apply bg-muted;
 }

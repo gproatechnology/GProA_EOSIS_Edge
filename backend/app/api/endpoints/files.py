@@ -3,7 +3,7 @@ from typing import List
 import uuid
 from datetime import datetime, timezone
 from app.db.database import udb
-from app.schemas.schemas import FileResponse
+from app.schemas.schemas import FileResponse, FileUpdate
 
 router = APIRouter()
 
@@ -47,6 +47,21 @@ async def upload_file(project_id: str, file: UploadFile = File(...)):
 async def list_files(project_id: str):
     files = await udb.files_find({"project_id": project_id}, {"content_text": 0})
     return [FileResponse(**f) for f in files]
+
+@router.put("/files/{file_id}", response_model=FileResponse)
+async def update_file(file_id: str, update_data: FileUpdate):
+    file = await udb.files_find_one({"id": file_id})
+    if not file:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    
+    # Preparamos los datos para actualizar, forzando confianza a 1.0 si es edicion manual
+    update_dict = update_data.model_dump(exclude_unset=True)
+    update_dict["confidence"] = 1.0
+    
+    await udb.files_update_one({"id": file_id}, {"$set": update_dict})
+    
+    updated_file = await udb.files_find_one({"id": file_id})
+    return FileResponse(**updated_file)
 
 @router.delete("/files/{file_id}")
 async def delete_file(file_id: str):

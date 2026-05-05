@@ -95,10 +95,15 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
   if (loading) {
     return (
       <div className="p-6 md:p-8 max-w-[1600px] mx-auto">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-slate-200 rounded w-1/3" />
-          <div className="h-4 bg-slate-100 rounded w-1/4" />
-          <div className="h-64 bg-slate-100 rounded" />
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 rounded-xl animate-skeleton" />
+            <div className="h-8 w-64 rounded-xl animate-skeleton" />
+          </div>
+          <div className="grid grid-cols-5 gap-4">
+            {[1,2,3,4,5].map(i => <div key={i} className="h-20 rounded-xl animate-skeleton" />)}
+          </div>
+          <div className="h-96 rounded-2xl animate-skeleton" />
         </div>
       </div>
     );
@@ -106,9 +111,9 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
 
   if (!project) {
     return (
-      <div className="p-6 md:p-8 max-w-[1600px] mx-auto text-center py-20">
-        <p className="text-slate-500">Proyecto no encontrado</p>
-        <button onClick={() => navigate("/")} className="mt-4 text-sm text-slate-700 underline" data-testid="go-back-link">
+      <div className="p-6 md:p-8 max-w-[1600px] mx-auto text-center py-20 bg-background text-foreground">
+        <p className="text-muted-foreground">Proyecto no encontrado</p>
+        <button onClick={() => navigate("/")} className="mt-4 text-sm text-primary underline" data-testid="go-back-link">
           Volver al Dashboard
         </button>
       </div>
@@ -120,14 +125,14 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
   const errorCount = files.filter((f) => f.status === "error").length;
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto animate-fadeIn" data-testid="project-detail">
+    <div className="p-6 md:p-8 max-w-[1600px] mx-auto animate-fadeIn bg-background text-foreground" data-testid="project-detail">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
-        <button onClick={() => navigate("/")} className="hover:text-slate-600 transition-colors" data-testid="breadcrumb-home">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+        <button onClick={() => navigate("/")} className="hover:text-foreground transition-colors" data-testid="breadcrumb-home">
           Proyectos
         </button>
         <span>/</span>
-        <span className="text-slate-700">{project.name}</span>
+        <span className="text-foreground font-medium">{project.name}</span>
       </div>
 
       {/* Header */}
@@ -136,29 +141,28 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/")}
-              className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
+              className="w-8 h-8 flex items-center justify-center rounded-xl border border-border bg-card hover:bg-muted hover:shadow-sm transition-all"
               data-testid="back-button"
             >
-              <ArrowLeft className="w-4 h-4 text-slate-600" />
+              <ArrowLeft className="w-4 h-4 text-foreground" />
             </button>
-            <h1 className="text-2xl tracking-tight font-bold text-slate-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            <h1 className="text-2xl tracking-tight font-bold text-foreground" style={{ fontFamily: "'Outfit', sans-serif" }}>
               {project.name}
             </h1>
           </div>
           <div className="flex items-center gap-3 mt-2 ml-11">
             <span className="edge-badge capitalize">{project.typology}</span>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               Creado {new Date(project.created_at).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })}
             </span>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Main EDGE Process Button */}
           {files.length > 0 && (
             <button
               onClick={handleProcessEdge}
               disabled={processingEdge || files.length === 0}
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:shadow-glow transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60"
               data-testid="process-edge-button"
             >
               <Lightning weight="fill" className="w-4 h-4" />
@@ -168,7 +172,7 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 hover:shadow-sm transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-destructive border border-destructive/20 rounded-xl hover:bg-destructive/10 transition-all disabled:opacity-50"
             data-testid="delete-project-button"
           >
             <Trash className="w-4 h-4" />
@@ -177,47 +181,47 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div className="stat-card">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-1">Archivos</p>
-          <p className="text-xl font-semibold text-slate-900 font-mono">{files.length}</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Archivos</p>
+          <p className="text-xl font-bold font-mono">{files.length}</p>
         </div>
         <div className="stat-card">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-1">Procesados</p>
-          <p className="text-xl font-semibold text-emerald-600 font-mono">{processedCount}</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Procesados</p>
+          <p className="text-xl font-bold text-emerald-500 font-mono">{processedCount}</p>
         </div>
         <div className="stat-card">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-1">Pendientes</p>
-          <p className="text-xl font-semibold text-amber-600 font-mono">{pendingCount}</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Pendientes</p>
+          <p className="text-xl font-bold text-amber-500 font-mono">{pendingCount}</p>
         </div>
         <div className="stat-card">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-1">Errores</p>
-          <p className="text-xl font-semibold text-red-500 font-mono">{errorCount}</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Errores</p>
+          <p className="text-xl font-bold text-red-500 font-mono">{errorCount}</p>
         </div>
         <div className="stat-card">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-1">Tipologia</p>
-          <p className="text-sm font-medium text-slate-900 capitalize">{project.typology}</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Tipologia</p>
+          <p className="text-sm font-bold capitalize">{project.typology}</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200 mb-6">
-        <div className="flex gap-0">
+      <div className="border-b border-border mb-6">
+        <div className="flex gap-2">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-3 text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
+              className={`px-5 py-3 text-sm font-medium transition-all relative flex items-center gap-1.5 ${
                 activeTab === tab.id
-                  ? "text-indigo-600"
-                  : "text-slate-400 hover:text-slate-600"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
               data-testid={`tab-${tab.id}`}
             >
               {tab.id === "compliance" && <Gauge className="w-3.5 h-3.5" />}
               {tab.label}
               {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
               )}
             </button>
           ))}
@@ -225,18 +229,20 @@ export default function ProjectDetail({ projectId, onProjectDeleted }) {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "files" && (
-        <FileUploadTab projectId={projectId} files={files} onRefresh={refreshData} />
-      )}
-      {activeTab === "data" && (
-        <ExtractedDataTab projectId={projectId} files={files} />
-      )}
-      {activeTab === "compliance" && (
-        <EdgeComplianceTab projectId={projectId} />
-      )}
-      {activeTab === "status" && (
-        <EdgeStatusTab projectId={projectId} />
-      )}
+      <div className="animate-fadeIn">
+        {activeTab === "files" && (
+          <FileUploadTab projectId={projectId} files={files} onRefresh={refreshData} />
+        )}
+        {activeTab === "data" && (
+          <ExtractedDataTab projectId={projectId} files={files} onRefresh={refreshData} />
+        )}
+        {activeTab === "compliance" && (
+          <EdgeComplianceTab projectId={projectId} />
+        )}
+        {activeTab === "status" && (
+          <EdgeStatusTab projectId={projectId} />
+        )}
+      </div>
 
       {/* Batch Progress Modal */}
       <BatchProgressModal

@@ -135,10 +135,13 @@ function Show-Diagnostic {
     $venvCheck = if (Test-Path (Join-Path $bePath "venv")) { "[OK]" } else { "[MISSING]" }
     $nmCheck = if (Test-Path (Join-Path $fePath "node_modules")) { "[OK]" } else { "[MISSING]" }
     $envCheck = if (Test-Path (Join-Path $bePath ".env")) { "[OK]" } else { "[MISSING]" }
+    $vColor = if ($venvCheck -eq "[OK]") { "Green" } else { "Red" }
+    $nColor = if ($nmCheck -eq "[OK]") { "Green" } else { "Red" }
+    $eColor = if ($envCheck -eq "[OK]") { "Green" } else { "Red" }
     
-    Write-Host "  Backend Venv:     $venvCheck" -ForegroundColor (if ($venvCheck -eq "[OK]") { "Green" } else { "Red" })
-    Write-Host "  Frontend Modules: $nmCheck" -ForegroundColor (if ($nmCheck -eq "[OK]") { "Green" } else { "Red" })
-    Write-Host "  Archivo .env:     $envCheck" -ForegroundColor (if ($envCheck -eq "[OK]") { "Green" } else { "Red" })
+    Write-Host "  Backend Venv:     $venvCheck" -ForegroundColor $vColor
+    Write-Host "  Frontend Modules: $nmCheck" -ForegroundColor $nColor
+    Write-Host "  Archivo .env:     $envCheck" -ForegroundColor $eColor
     Write-Host ("-" * 60) -ForegroundColor DarkGray
 
     Write-Info "Estado de Servicios y Puertos:"
@@ -235,9 +238,9 @@ function Start-Frontend {
     }
     $nodeModules = Join-Path $fd "node_modules"
     if (-not (Test-Path $nodeModules)) {
-        Write-Info "Instalando dependencias frontend (npm install)..."
+        Write-Info "Instalando dependencias frontend (npm install --legacy-peer-deps)..."
         Push-Location $fd
-        npm install
+        npm install --legacy-peer-deps
         if ($LASTEXITCODE -ne 0) {
             Write-Error "Fallo npm install"
             Pop-Location

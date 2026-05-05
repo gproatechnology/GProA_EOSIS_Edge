@@ -55,9 +55,9 @@ export default function FileUploadTab({ projectId, files, onRefresh }) {
       case "processed":
         return <CheckCircle weight="fill" className="w-4 h-4 text-emerald-500" />;
       case "error":
-        return <WarningCircle weight="fill" className="w-4 h-4 text-red-500" />;
+        return <WarningCircle weight="fill" className="w-4 h-4 text-destructive" />;
       default:
-        return <Clock className="w-4 h-4 text-slate-400" />;
+        return <Clock className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -92,17 +92,19 @@ export default function FileUploadTab({ projectId, files, onRefresh }) {
         />
         {uploading ? (
           <div className="flex flex-col items-center gap-2">
-            <SpinnerGap className="w-8 h-8 text-slate-400 animate-spin" />
-            <p className="text-sm text-slate-500">Subiendo archivos...</p>
+            <SpinnerGap className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-sm text-muted-foreground">Subiendo archivos...</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <UploadSimple className="w-8 h-8 text-slate-400" />
-            <p className="text-sm text-slate-600 font-medium">
-              Arrastra archivos aqui o haz click para seleccionar
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-2 transition-transform group-hover:scale-110">
+              <UploadSimple className="w-6 h-6" />
+            </div>
+            <p className="text-sm font-bold">
+              Arrastra archivos aquí o haz clic para seleccionar
             </p>
-            <p className="text-xs text-slate-400">
-              Fichas tecnicas, planos, memorias, facturas, etc.
+            <p className="text-xs text-muted-foreground">
+              Fichas técnicas, planos, memorias, facturas, etc.
             </p>
           </div>
         )}
@@ -110,77 +112,73 @@ export default function FileUploadTab({ projectId, files, onRefresh }) {
 
       {/* Info banner */}
       {files.length > 0 && files.some(f => f.status === "pending") && (
-        <div className="bg-sky-50 border border-sky-200 rounded-sm p-3 mb-6 flex items-center gap-2" data-testid="pending-alert">
-          <Clock className="w-4 h-4 text-sky-500 flex-shrink-0" />
-          <p className="text-xs text-sky-700">
-            {files.filter(f => f.status === "pending").length} archivo(s) pendiente(s). 
-            Usa el boton <strong>"Procesar Proyecto EDGE"</strong> en la parte superior para clasificar y analizar todos los archivos.
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-6 flex items-start gap-3 animate-fadeIn" data-testid="pending-alert">
+          <Clock className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-foreground leading-relaxed">
+            <span className="font-bold">{files.filter(f => f.status === "pending").length} archivo(s) pendiente(s).</span><br/> 
+            Usa el botón <strong className="text-primary">"Procesar Proyecto EDGE"</strong> en la parte superior para clasificar y analizar todos los archivos.
           </p>
         </div>
       )}
 
       {/* File List */}
       {files.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-sm p-12 text-center">
-          <FileText className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-slate-500">No hay archivos subidos</p>
-          <p className="text-xs text-slate-400 mt-1">
-            Sube documentos tecnicos para clasificarlos automaticamente
+        <div className="bg-card border border-border rounded-xl p-16 text-center shadow-sm">
+          <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4 text-muted-foreground">
+            <FileText className="w-8 h-8" />
+          </div>
+          <p className="text-sm font-bold">No hay archivos subidos</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Sube documentos técnicos para clasificarlos automáticamente
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
           <table className="w-full data-table" data-testid="files-table">
             <thead>
-              <tr>
-                <th>Archivo</th>
-                <th>Tamano</th>
-                <th>Estado</th>
-                <th>Categoria</th>
-                <th>Medida</th>
-                <th>Tipo Doc</th>
-                <th>Confianza</th>
-                <th className="w-10"></th>
+              <tr className="bg-muted/50 border-b border-border">
+                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Archivo</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Tamaño</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Estado</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Categoría</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Medida</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider"></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {files.map((f) => (
-                <tr key={f.id} data-testid={`file-row-${f.id}`}>
-                  <td>
+                <tr key={f.id} className="hover:bg-muted/30 transition-colors group">
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                      <span className="truncate max-w-[200px]">{f.filename}</span>
+                      <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate max-w-[200px] text-sm font-medium">{f.filename}</span>
                     </div>
                   </td>
-                  <td className="font-mono text-xs text-slate-500">
+                  <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
                     {f.file_size > 1024 ? `${(f.file_size / 1024).toFixed(1)} KB` : `${f.file_size} B`}
                   </td>
-                  <td>
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       {statusIcon(f.status)}
-                      <span className="text-xs capitalize">
+                      <span className="text-xs font-medium">
                         {f.status === "pending" ? "Pendiente" : f.status === "processed" ? "Procesado" : "Error"}
                       </span>
                     </div>
                   </td>
-                  <td>
+                  <td className="px-4 py-3">
                     {f.category_edge ? (
                       <span className={`edge-badge ${categoryBadgeClass(f.category_edge)}`}>
                         {f.category_edge}
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-400">-</span>
+                      <span className="text-xs opacity-40">-</span>
                     )}
                   </td>
-                  <td className="font-mono text-xs">{f.measure_edge || "-"}</td>
-                  <td className="text-xs capitalize">{f.doc_type?.replace("_", " ") || "-"}</td>
-                  <td className="font-mono text-xs">
-                    {f.confidence != null ? `${(f.confidence * 100).toFixed(0)}%` : "-"}
-                  </td>
-                  <td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{f.measure_edge || "-"}</td>
+                  <td className="px-4 py-3 text-right">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteFile(f.id); }}
-                      className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                       data-testid={`delete-file-${f.id}`}
                     >
                       <Trash className="w-4 h-4" />
