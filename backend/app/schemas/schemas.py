@@ -13,6 +13,9 @@ class ProjectResponse(BaseModel):
     created_at: str
     file_count: int = 0
     processed_count: int = 0
+    priority: Optional[str] = None
+    square_meters: Optional[float] = None
+    annual_consumption_kwh: Optional[float] = None
 
 class FileResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -32,4 +35,6 @@ class FileResponse(BaseModel):
     modelo: Optional[str] = None
     areas: Optional[list] = None
     specialized_data: Optional[dict] = None
+    consumption_kwh: Optional[float] = None
+    cost: Optional[float] = None
     uploaded_at: str

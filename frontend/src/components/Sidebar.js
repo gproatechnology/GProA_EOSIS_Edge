@@ -48,6 +48,33 @@ export default function Sidebar({ projects, onNavigate }) {
           </button>
         </div>
 
+        {/* Portfolio Summary */}
+        <div className="mb-6 px-3">
+          <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 mb-2">
+            Resumen Portafolio
+          </p>
+          <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] text-slate-500">Críticos</span>
+              <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 rounded">
+                {projects.filter(p => p.priority?.toLowerCase().includes('crit')).length}
+              </span>
+            </div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] text-slate-500">Alta Prioridad</span>
+              <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 rounded">
+                {projects.filter(p => p.priority?.toLowerCase() === 'alta').length}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-500">Eficiencia Promedio</span>
+              <span className="text-[10px] font-bold text-indigo-600">
+                {projects.length > 0 ? (projects.reduce((acc, p) => acc + (p.square_meters > 0 ? p.annual_consumption_kwh / p.square_meters : 0), 0) / projects.filter(p => p.square_meters > 0).length || 0).toFixed(0) : 0} <span className="text-[8px]">kWh/m²</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div>
           <p className="text-[10px] uppercase tracking-[0.1em] font-semibold text-slate-400 px-3 mb-2">
             Proyectos

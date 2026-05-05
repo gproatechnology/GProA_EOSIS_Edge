@@ -69,13 +69,45 @@ export default function ExtractedDataTab({ projectId, files }) {
         <button
           onClick={handleExport}
           disabled={exporting}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-white text-slate-700 border border-slate-200 rounded-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
           data-testid="export-excel"
         >
           <DownloadSimple className="w-4 h-4" />
           {exporting ? "Exportando..." : "Exportar Excel"}
         </button>
       </div>
+
+      {/* Billing Insights Panel */}
+      {processedFiles.some(f => f.cost > 0 || f.consumption_kwh > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 animate-fadeIn">
+          <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-indigo-400 mb-1">Gasto Total Detectado</p>
+            <p className="text-2xl font-bold text-indigo-700 font-mono">
+              ${processedFiles.reduce((sum, f) => sum + (f.cost || 0), 0).toLocaleString()}
+            </p>
+          </div>
+          <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-400 mb-1">Consumo Total</p>
+            <p className="text-2xl font-bold text-emerald-700 font-mono">
+              {processedFiles.reduce((sum, f) => sum + (f.consumption_kwh || 0), 0).toLocaleString()} <span className="text-xs">kWh</span>
+            </p>
+          </div>
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Confianza Media IA</p>
+            <div className="flex items-center gap-2">
+              <p className="text-2xl font-bold text-slate-700 font-mono">
+                {(processedFiles.reduce((sum, f) => sum + (f.confidence || 0), 0) / processedFiles.length * 100).toFixed(0)}%
+              </p>
+              <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-500 transition-all duration-1000" 
+                  style={{ width: `${(processedFiles.reduce((sum, f) => sum + (f.confidence || 0), 0) / processedFiles.length * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* General Data Table */}
       <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto mb-6">
@@ -85,12 +117,10 @@ export default function ExtractedDataTab({ projectId, files }) {
               <th>Archivo</th>
               <th>Categoria</th>
               <th>Medida</th>
-              <th>Tipo Doc</th>
-              <th>Watts</th>
-              <th>Lumens</th>
-              <th>Equipo</th>
-              <th>Marca</th>
-              <th>Modelo</th>
+               <th>Tipo Doc</th>
+              <th>Consumo / Costo</th>
+              <th>Watts / Lumens</th>
+              <th>Equipo / Marca</th>
               <th>Confianza</th>
             </tr>
           </thead>
@@ -103,16 +133,39 @@ export default function ExtractedDataTab({ projectId, files }) {
                 </td>
                 <td className="font-mono text-xs font-medium">{f.measure_edge || "-"}</td>
                 <td className="text-xs capitalize">{f.doc_type?.replace("_", " ") || "-"}</td>
-                <td className="font-mono text-xs">{f.watts != null ? f.watts : "-"}</td>
-                <td className="font-mono text-xs">{f.lumens != null ? f.lumens : "-"}</td>
-                <td className="text-xs">{f.tipo_equipo || "-"}</td>
-                <td className="text-xs">{f.marca || "-"}</td>
-                <td className="text-xs">{f.modelo || "-"}</td>
+                <td className="text-[10px]">
+                  {f.consumption_kwh != null && (
+                    <div className="font-mono font-medium text-slate-700">{f.consumption_kwh.toLocaleString()} <span className="text-[8px] text-slate-400">kWh</span></div>
+                  )}
+                  {f.cost != null && (
+                    <div className="font-mono text-indigo-600">${f.cost.toLocaleString()}</div>
+                  )}
+                  {f.consumption_kwh == null && f.cost == null && "-"}
+                </td>
+                <td className="font-mono text-[10px]">
+                  {f.watts != null && <span>{f.watts}W</span>}
+                  {f.lumens != null && <span className="text-slate-400 ml-1">/ {f.lumens}lm</span>}
+                  {f.watts == null && f.lumens == null && "-"}
+                </td>
+                <td className="text-[10px]">
+                  <div className="font-medium text-slate-700">{f.tipo_equipo || "-"}</div>
+                  <div className="text-slate-400">{f.marca} {f.modelo}</div>
+                </td>
                 <td className="font-mono text-xs">
                   {f.confidence != null ? (
-                    <span className={f.confidence >= 0.7 ? "text-emerald-600" : f.confidence >= 0.4 ? "text-amber-600" : "text-red-500"}>
-                      {(f.confidence * 100).toFixed(0)}%
-                    </span>
+                    <div className="w-full max-w-[100px]">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-[10px] font-bold ${f.confidence >= 0.8 ? "text-emerald-600" : f.confidence >= 0.5 ? "text-orange-600" : "text-red-500"}`}>
+                          {(f.confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-500 ${f.confidence >= 0.8 ? "bg-emerald-500" : f.confidence >= 0.5 ? "bg-orange-500" : "bg-red-500"}`}
+                          style={{ width: `${f.confidence * 100}%` }}
+                        />
+                      </div>
+                    </div>
                   ) : "-"}
                 </td>
               </tr>

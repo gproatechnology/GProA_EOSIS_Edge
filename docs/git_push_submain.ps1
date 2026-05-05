@@ -183,7 +183,49 @@ if ($pullOption -eq 's') {
 # 9. Push
 $pushResult = Invoke-GitWithLog "git push origin $BRANCH_NAME" "Subiendo a $BRANCH_NAME"
 
-# 10. Resultado final
+# 10. Guardar lista de archivos commithead (obtenida justo después del commit)
+# Para eso, debemos capturar los archivos antes o después. La forma más fiable es justo después del commit.
+# Pero como el commit ya ocurrió, podemos usar git show --name-only
+
+# 11. Push
+$pushResult = Invoke-GitWithLog "git push origin $BRANCH_NAME" "Subiendo a $BRANCH_NAME"
+
+# 12. Generar informe final
+Write-Host ""
+Write-Host ("=" * 60) -ForegroundColor Cyan
+Write-Host "                     INFORME FINAL" -ForegroundColor Cyan
+Write-Host ("=" * 60) -ForegroundColor Cyan
+
+# Obtener información del último commit
+$lastCommitHash = git rev-parse --short HEAD 2>$null
+$lastCommitMsg = git log -1 --pretty=%B 2>$null
+$lastCommitDate = git log -1 --pretty=%cd --date=local 2>$null
+$commitStats = git show --stat --oneline -1 2>$null
+$commitFiles = git show --name-only --pretty=format: 2>$null | Where-Object { $_ -ne "" }
+
+Write-Info "Hash del commit: $lastCommitHash"
+Write-Info "Fecha: $lastCommitDate"
+Write-Info "Mensaje: $lastCommitMsg"
+Write-Info "Rama destino: $BRANCH_NAME"
+
+# Mostrar estadísticas de archivos
+$fileCount = ($commitFiles | Measure-Object).Count
+Write-Info "Archivos modificados/creados: $fileCount"
+
+if ($fileCount -gt 0 -and $fileCount -le 20) {
+    Write-Host "`n[Lista de archivos]" -ForegroundColor Yellow
+    foreach ($file in $commitFiles) {
+        Write-Host "  - $file" -ForegroundColor Gray
+    }
+} elseif ($fileCount -gt 20) {
+    Write-Host "`n(Más de 20 archivos. Para ver la lista completa, ejecuta 'git show --name-only')" -ForegroundColor DarkGray
+}
+
+# Mostrar estadísticas resumidas del commit
+Write-Host "`n[Estadísticas del commit]" -ForegroundColor Yellow
+Write-Host $commitStats -ForegroundColor Gray
+
+# Resultado del push
 Write-Host ""
 if ($pushResult) {
     Write-Host ("=" * 60) -ForegroundColor Green
@@ -193,6 +235,18 @@ if ($pushResult) {
     Write-Error "Hubo un problema al subir los cambios. Revisa los mensajes anteriores."
 }
 Write-Host ("=" * 60) -ForegroundColor DarkGray
+
+# Registrar informe en el log (opcional)
+$logReport = @"
+`n=== INFORME FINAL ===
+Hash: $lastCommitHash
+Fecha: $lastCommitDate
+Mensaje: $lastCommitMsg
+Rama: $BRANCH_NAME
+Archivos: $fileCount
+Resultado push: $(if ($pushResult) { "ÉXITO" } else { "FALLO" })
+"@
+Add-Content -Path $LOG_FILE -Value $logReport
 
 Pop-Location
 Read-Host "`nPresiona Enter para salir"
