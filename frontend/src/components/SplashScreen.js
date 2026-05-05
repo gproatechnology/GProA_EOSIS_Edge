@@ -46,13 +46,6 @@ export default function SplashScreen({ onFinish }) {
         <p className="mt-4 text-xs text-slate-500 font-mono">Inicializando entorno...</p>
       </div>
 
-      <style jsx>{`
-        @keyframes loading {
-          0% { width: 0%; }
-          50% { width: 70%; }
-          100% { width: 100%; }
-        }
-      `}</style>
     </div>
   );
 }

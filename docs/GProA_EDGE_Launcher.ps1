@@ -45,12 +45,17 @@ function Test-Dependencies {
 }
 
 function Get-ProcessByPort($port) {
-    $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
-    if ($connections) {
-        $procId = $connections.OwningProcess
-        $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
-        return @{ PID = $procId; Name = $proc.ProcessName; Memory = [math]::Round($proc.WorkingSet64 / 1MB, 2) }
-    }
+    try {
+        # Intentar con Get-NetTCPConnection (mas moderno)
+        $conn = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Sort-Object State | Select-Object -First 1
+        if ($conn -and $conn.OwningProcess) {
+            $procId = if ($conn.OwningProcess -is [array]) { $conn.OwningProcess[0] } else { $conn.OwningProcess }
+            $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($proc) {
+                return @{ PID = $procId; Name = $proc.ProcessName; Memory = [math]::Round($proc.WorkingSet64 / 1MB, 2) }
+            }
+        }
+    } catch { }
     return $null
 }
 
@@ -61,29 +66,54 @@ function Show-ServiceStatus {
     # Backend
     $be = Get-ProcessByPort $BACKEND_PORT
     if ($be) {
-        Write-Host "[ACTIVO] BACKEND" -ForegroundColor Green -NoNewline
-        Write-Host " - Puerto $BACKEND_PORT (PID: $($be.PID))" -ForegroundColor Gray
-        Write-Host "         Proceso: $($be.Name)   Memoria: $($be.Memory) MB" -ForegroundColor Gray
+        $proc = $be
+        $status = "ACTIVO"
+        $name = "BACKEND"
+        $port = $BACKEND_PORT
+        $color = "Green"
+        $uniquePid = $proc.PID
+        Write-Host "[$status] $name - Puerto $port (PID: $uniquePid) " -ForegroundColor $color -NoNewline
+        Write-Host ""
+        Write-Host "         Proceso: $($proc.Name)   Memoria: $($proc.Memory) MB" -ForegroundColor Gray
     } else {
         Write-Host "[INACTIVO] BACKEND - Puerto $BACKEND_PORT libre" -ForegroundColor Red
     }
     # Frontend
     $fe = Get-ProcessByPort $FRONTEND_PORT
     if ($fe) {
-        Write-Host "[ACTIVO] FRONTEND" -ForegroundColor Green -NoNewline
-        Write-Host " - Puerto $FRONTEND_PORT (PID: $($fe.PID))" -ForegroundColor Gray
-        Write-Host "         Proceso: $($fe.Name)   Memoria: $($fe.Memory) MB" -ForegroundColor Gray
+        $proc = $fe
+        $status = "ACTIVO"
+        $name = "FRONTEND"
+        $port = $FRONTEND_PORT
+        $color = "Green"
+        $uniquePid = $proc.PID
+        Write-Host "[$status] $name - Puerto $port (PID: $uniquePid) " -ForegroundColor $color -NoNewline
+        Write-Host ""
+        Write-Host "         Proceso: $($proc.Name)   Memoria: $($proc.Memory) MB" -ForegroundColor Gray
     } else {
         Write-Host "[INACTIVO] FRONTEND - Puerto $FRONTEND_PORT libre" -ForegroundColor Red
     }
-    # Health check
-    Write-Host ("-" * 60) -ForegroundColor DarkGray
-    Write-Host "HEALTH CHECK BACKEND" -ForegroundColor Cyan
+    Write-Host "ACCESO DIRECTO" -ForegroundColor Cyan
+    Write-Host "  Frontend: http://localhost:$FRONTEND_PORT" -ForegroundColor Yellow
+    Write-Host "  Backend:  http://localhost:$BACKEND_PORT/api" -ForegroundColor Yellow
+    Write-Host "  Swagger:  http://localhost:$BACKEND_PORT/docs" -ForegroundColor Yellow
+    Write-Host "DIAGNOSTICO DE CONECTIVIDAD" -ForegroundColor Cyan
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:$BACKEND_PORT/api/" -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop
-        Write-Success "Backend responde (HTTP $($response.StatusCode))"
+        $url = "http://127.0.0.1:$BACKEND_PORT/api"
+        $check = Invoke-RestMethod -Uri $url -TimeoutSec 5 -ErrorAction Stop
+        Write-Success "API Backend:  ONLINE ($($check.message))"
     } catch {
-        Write-Warning "Backend no responde o iniciando"
+        Write-Warning "API Backend:  OFFLINE o cargando..."
+    }
+    
+    # Intento de verificar DB (solo si el backend esta activo)
+    if ($be) {
+        try {
+            $dbCheck = Invoke-RestMethod -Uri "http://127.0.0.1:$BACKEND_PORT/api/projects" -TimeoutSec 3 -ErrorAction Stop
+            Write-Success "Base de Datos: ACCESIBLE ($( @($dbCheck).Count ) proyectos)"
+        } catch {
+            Write-Warning "Base de Datos: ERROR DE CONEXION"
+        }
     }
     Write-Host ("-" * 60) -ForegroundColor DarkGray
 }
@@ -93,11 +123,25 @@ function Show-Diagnostic {
     Write-Host ("-" * 60) -ForegroundColor DarkGray
     Write-Host "DIAGNOSTICO AVANZADO" -ForegroundColor Cyan
     Write-Host ("-" * 60) -ForegroundColor DarkGray
-    Write-Info "Versiones:"
-    Write-Host "  Python: $(python --version 2>&1)" -ForegroundColor Gray
-    Write-Host "  Node:   $(node --version 2>&1)" -ForegroundColor Gray
+    Write-Info "Versiones de Entorno:"
+    Write-Host "  Python:    $(python --version 2>&1)" -ForegroundColor Gray
+    Write-Host "  Node:      $(node --version 2>&1)" -ForegroundColor Gray
+    Write-Host "  NPM:       $(npm --version 2>&1)" -ForegroundColor Gray
     Write-Host ("-" * 60) -ForegroundColor DarkGray
-    Write-Info "Estado de puertos:"
+    
+    Write-Info "Integridad de Archivos:"
+    $bePath = Join-Path $ROOT_DIR "backend"
+    $fePath = Join-Path $ROOT_DIR "frontend"
+    $venvCheck = if (Test-Path (Join-Path $bePath "venv")) { "[OK]" } else { "[MISSING]" }
+    $nmCheck = if (Test-Path (Join-Path $fePath "node_modules")) { "[OK]" } else { "[MISSING]" }
+    $envCheck = if (Test-Path (Join-Path $bePath ".env")) { "[OK]" } else { "[MISSING]" }
+    
+    Write-Host "  Backend Venv:     $venvCheck" -ForegroundColor (if ($venvCheck -eq "[OK]") { "Green" } else { "Red" })
+    Write-Host "  Frontend Modules: $nmCheck" -ForegroundColor (if ($nmCheck -eq "[OK]") { "Green" } else { "Red" })
+    Write-Host "  Archivo .env:     $envCheck" -ForegroundColor (if ($envCheck -eq "[OK]") { "Green" } else { "Red" })
+    Write-Host ("-" * 60) -ForegroundColor DarkGray
+
+    Write-Info "Estado de Servicios y Puertos:"
     Show-ServiceStatus
     Write-Host ("-" * 60) -ForegroundColor DarkGray
     Write-Info "Variables de entorno:"
@@ -176,8 +220,8 @@ function Start-Backend {
     Write-Info "Swagger  : http://localhost:$BACKEND_PORT/docs"
     Write-Info "ReDoc    : http://localhost:$BACKEND_PORT/redoc"
     Write-Host ("-" * 60) -ForegroundColor Cyan
-    # Lanzar proceso en ventana separada (usando Start-Process con cmd /c escapado)
-    $arguments = '/c cd /d "' + $bd + '" & call venv\Scripts\activate.bat & uvicorn app.main:app --reload --port ' + $BACKEND_PORT + ' > "' + $BACKEND_LOG + '" 2>&1'
+    # Lanzar proceso en ventana separada con titulo y color (0B = Cyan)
+    $arguments = '/k title GProA EDGE - BACKEND & color 0B & cd /d "' + $bd + '" & call venv\Scripts\activate.bat & uvicorn app.main:app --reload --port ' + $BACKEND_PORT
     Start-Process -FilePath "cmd.exe" -ArgumentList $arguments -WindowStyle Normal
     Write-Success "Backend lanzado (log en $BACKEND_LOG)"
     return $true
@@ -206,7 +250,8 @@ function Start-Frontend {
         return $false
     }
     Write-Info "Iniciando Frontend (React)..."
-    $arguments = '/c cd /d "' + $fd + '" & set REACT_APP_BACKEND_URL=http://localhost:' + $BACKEND_PORT + '/ & npm start > "' + $FRONTEND_LOG + '" 2>&1'
+    # Lanzar proceso en ventana separada con titulo y color (0E = Amarillo)
+    $arguments = '/k title GProA EDGE - FRONTEND & color 0E & cd /d "' + $fd + '" & set "REACT_APP_BACKEND_URL=http://127.0.0.1:' + $BACKEND_PORT + '" & npm start'
     Start-Process -FilePath "cmd.exe" -ArgumentList $arguments -WindowStyle Normal
     Write-Success "Frontend lanzado (log en $FRONTEND_LOG)"
     return $true
@@ -232,15 +277,16 @@ function Stop-AllServices {
 }
 
 function Invoke-SeedData {
-    Write-Info "Cargando datos mock en http://localhost:$BACKEND_PORT/api/debug/seed..."
+    Write-Info "Cargando datos mock en http://127.0.0.1:$BACKEND_PORT/api/debug/seed..."
     try {
-        $null = Invoke-WebRequest -Uri "http://localhost:$BACKEND_PORT/api/" -TimeoutSec 2 -ErrorAction Stop
+        # Validar sin barra final y con mas tiempo
+        $null = Invoke-WebRequest -Uri "http://127.0.0.1:$BACKEND_PORT/api" -TimeoutSec 5 -ErrorAction Stop
     } catch {
-        Write-Error "El backend no esta disponible. Inicialo primero."
+        Write-Error "El backend no esta disponible en el puerto $BACKEND_PORT (127.0.0.1). Inicialo primero."
         return
     }
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:$BACKEND_PORT/api/debug/seed" -Method POST -UseBasicParsing -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "http://127.0.0.1:$BACKEND_PORT/api/debug/seed" -Method POST -UseBasicParsing -ErrorAction Stop
         if ($response.StatusCode -eq 200) {
             Write-Success "Datos cargados exitosamente"
         } else {
@@ -248,6 +294,26 @@ function Invoke-SeedData {
         }
     } catch {
         Write-Error "Error al cargar datos: $($_.Exception.Message)"
+    }
+}
+
+function Invoke-ClearData {
+    Write-Warning "Esto eliminara TODOS los proyectos y archivos de la base de datos."
+    $confirm = Read-Host -Prompt "¿Estas seguro? (s/n)"
+    if ($confirm -ne "s") { return }
+
+    Write-Info "Limpiando base de datos en http://127.0.0.1:$BACKEND_PORT/api/debug/clear..."
+    try {
+        $null = Invoke-WebRequest -Uri "http://127.0.0.1:$BACKEND_PORT/api" -TimeoutSec 5 -ErrorAction Stop
+    } catch {
+        Write-Error "El backend no esta disponible. Inicialo primero."
+        return
+    }
+    try {
+        $response = Invoke-WebRequest -Uri "http://127.0.0.1:$BACKEND_PORT/api/debug/clear" -Method POST -UseBasicParsing -ErrorAction Stop
+        Write-Success "Base de datos limpiada correctamente"
+    } catch {
+        Write-Error "Error al limpiar datos: $($_.Exception.Message)"
     }
 }
 
@@ -308,6 +374,7 @@ do {
     Show-MenuItem "7" "Diagnostico"
     Show-MenuItem "8" "Limpiar y Reiniciar (venv / node_modules)"
     Show-MenuItem "9" "Cargar Datos Mock (Seed)"
+    Show-MenuItem "10" "Limpiar Base de Datos (Vaciar)"
     Show-MenuItem "0" "Salir"
     Write-Host ""
     $opt = Read-Host -Prompt "Selecciona (0-9)"
@@ -359,6 +426,10 @@ do {
         }
         "9" {
             Invoke-SeedData
+            Read-Host "`nPresiona Enter para continuar"
+        }
+        "10" {
+            Invoke-ClearData
             Read-Host "`nPresiona Enter para continuar"
         }
         "0" {

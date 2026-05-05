@@ -247,7 +247,6 @@ export default function ProjectDashboard({ projects, loading, onProjectCreated, 
             Crear Proyecto
           </button>
         </div>
-      ) : (
       ) : filteredProjects.length === 0 ? (
         <div className="bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl p-16 text-center animate-fadeIn shadow-sm">
           <div className="w-16 h-16 bg-slate-50 rounded-xl flex items-center justify-center mx-auto mb-4">

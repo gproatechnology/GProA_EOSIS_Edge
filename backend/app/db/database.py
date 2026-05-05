@@ -33,9 +33,18 @@ class UnifiedDB:
                     typology TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     file_count INTEGER DEFAULT 0,
-                    processed_count INTEGER DEFAULT 0
+                    processed_count INTEGER DEFAULT 0,
+                    priority TEXT,
+                    square_meters REAL,
+                    annual_consumption_kwh REAL
                 )
             """)
+            # Migracion automatica para bases de datos existentes
+            for col, col_type in [("priority", "TEXT"), ("square_meters", "REAL"), ("annual_consumption_kwh", "REAL")]:
+                try:
+                    await self.conn.execute(f"ALTER TABLE projects ADD COLUMN {col} {col_type}")
+                except:
+                    pass # La columna ya existe
             await self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS files (
                     id TEXT PRIMARY KEY,
@@ -69,11 +78,12 @@ class UnifiedDB:
         else:
             await self._ensure_sqlite()
             await self.conn.execute("""
-                INSERT INTO projects (id, name, typology, created_at, file_count, processed_count)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO projects (id, name, typology, created_at, file_count, processed_count, priority, square_meters, annual_consumption_kwh)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 doc["id"], doc["name"], doc["typology"], doc["created_at"],
-                doc.get("file_count", 0), doc.get("processed_count", 0)
+                doc.get("file_count", 0), doc.get("processed_count", 0),
+                doc.get("priority"), doc.get("square_meters"), doc.get("annual_consumption_kwh")
             ))
             await self.conn.commit()
 
@@ -83,7 +93,7 @@ class UnifiedDB:
             return await db.projects.find_one(query, proj)
         else:
             await self._ensure_sqlite()
-            columns = ["id", "name", "typology", "created_at", "file_count", "processed_count"]
+            columns = ["id", "name", "typology", "created_at", "file_count", "processed_count", "priority", "square_meters", "annual_consumption_kwh"]
             where = [f"{k}=?" for k in query.keys()]
             params = list(query.values())
             sql = f"SELECT {', '.join(columns)} FROM projects WHERE {' AND '.join(where)}"
@@ -98,7 +108,7 @@ class UnifiedDB:
             return await cursor.to_list(100)
         else:
             await self._ensure_sqlite()
-            columns = ["id", "name", "typology", "created_at", "file_count", "processed_count"]
+            columns = ["id", "name", "typology", "created_at", "file_count", "processed_count", "priority", "square_meters", "annual_consumption_kwh"]
             sql = f"SELECT {', '.join(columns)} FROM projects"
             params = []
             if query:
@@ -120,6 +130,20 @@ class UnifiedDB:
             async with self.conn.execute(sql, params) as cur:
                 await self.conn.commit()
                 return type('Result', (), {'deleted_count': cur.rowcount})()
+
+    async def projects_delete_many(self, query: dict):
+        if self.mode == "mongodb":
+            await db.projects.delete_many(query)
+        else:
+            await self._ensure_sqlite()
+            if not query:
+                await self.conn.execute("DELETE FROM projects")
+            else:
+                where = [f"{k}=?" for k in query.keys()]
+                params = list(query.values())
+                sql = f"DELETE FROM projects WHERE {' AND '.join(where)}"
+                await self.conn.execute(sql, params)
+            await self.conn.commit()
 
     async def files_insert_one(self, doc: dict):
         if self.mode == "mongodb":

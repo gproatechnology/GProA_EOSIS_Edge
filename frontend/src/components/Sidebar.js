@@ -10,6 +10,8 @@ export default function Sidebar({ projects, onNavigate }) {
     window.location.href = "/";
   };
 
+  console.log("Sidebar Projects Data:", projects);
+
   return (
     <aside
       className="fixed top-0 left-0 w-[260px] h-screen bg-white/80 backdrop-blur-md border-r border-slate-100 flex flex-col z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
@@ -57,19 +59,19 @@ export default function Sidebar({ projects, onNavigate }) {
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] text-slate-500">Críticos</span>
               <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 rounded">
-                {projects.filter(p => p.priority?.toLowerCase().includes('crit')).length}
+                {projects.filter(p => p.priority && p.priority.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('crit')).length}
               </span>
             </div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] text-slate-500">Alta Prioridad</span>
               <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 rounded">
-                {projects.filter(p => p.priority?.toLowerCase() === 'alta').length}
+                {projects.filter(p => p.priority && p.priority.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('alt')).length}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-slate-500">Eficiencia Promedio</span>
               <span className="text-[10px] font-bold text-indigo-600">
-                {projects.length > 0 ? (projects.reduce((acc, p) => acc + (p.square_meters > 0 ? p.annual_consumption_kwh / p.square_meters : 0), 0) / projects.filter(p => p.square_meters > 0).length || 0).toFixed(0) : 0} <span className="text-[8px]">kWh/m²</span>
+                {projects.length > 0 ? (projects.reduce((acc, p) => acc + (p.square_meters > 0 ? (p.annual_consumption_kwh || 0) / p.square_meters : 0), 0) / projects.filter(p => p.square_meters > 0).length || 0).toFixed(0) : 0} <span className="text-[8px]">kWh/m²</span>
               </span>
             </div>
           </div>
